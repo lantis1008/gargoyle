@@ -6,6 +6,9 @@
  * See http://gargoyle-router.com/faq.html#qfoss for more information
  */
 
+span#update_container {
+    display: none;
+}
 .indent {
   margin-left: 25px;
 }
