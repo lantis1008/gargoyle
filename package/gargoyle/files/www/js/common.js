@@ -987,7 +987,7 @@ function setElementEnabled(element, enabled, defaultValue)
 		}
 		else if(element.type == "select-one" || element.type == "select-multiple" || element.type == "select" )
 		{
-			element.className="";
+			element.className="form-control";
 		}
 		else if(element.type == "button")
 		{
@@ -1002,17 +1002,17 @@ function setElementEnabled(element, enabled, defaultValue)
 		{
 			element.value=defaultValue;
 			element.style.color="#AAAAAA";
-			element.className="text_disabled";
+			element.className="form-control disabled";
 		}
 		else if(element.type == "select-one" || element.type == "select-multiple" || element.type == "select" )
 		{
 			setSelectedValue(element.id, defaultValue, element.ownerDocument);
-			element.className="select_disabled";
+			element.className="form-control disabled";
 		}
 		else if(element.type == "button")
 		{
 			var activeClassName = element.className.replace(/_button.*$/, "_button");
-			element.className= activeClassName + "_disabled";
+			element.className= activeClassName + " disabled";
 		}
 		else if(element.type == "file")
 		{
