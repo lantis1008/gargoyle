@@ -9,13 +9,21 @@
 	gargoyle_header_footer -h -s "" -p "" -c "internal.css" -j ""
 %>
 
+<h1 class="page-header"><%~ AJAX %></h1>
+<div class="row">
 
-<fieldset>
-	<legend class="sectionheader"><%~ AJAX %></legend>
+	<div class="col-lg-4">
+		<div class="panel panel-default">
 
-	<p><%~ AJAXUpg %></p>
+			<div class="panel-body">
+				<p><%~ AJAXUpg %></p>
+			</div>
 
-</fieldset>
+		</div>
+	</div>
+
+</div>
+
 <%
 	gargoyle_header_footer -f -s "" -p ""
 %>

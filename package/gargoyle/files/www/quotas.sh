@@ -28,37 +28,42 @@
 //-->
 </script>
 
-<form>
-	<fieldset>
-		<legend class="sectionheader"><%~ quotas.Section %></legend>
+<h1 class="page-header">Quotas</h1>
+<div class="row">
 
-		<span id="add_quota_label" style="text-decoration:underline" ><%~ AddQuota %>:</span>
+	<div class="col-lg-6">
+		<div class="panel panel-default">
 
-		<div>
-
-			<%in templates/quotas_template %>
-
-			<div>
-				<input type="button" id="add_quota_button" class="default_button" value="<%~ AddQuota %>" onclick="addNewQuota()" />
+			<div class="panel-heading">
+				<h3 class="panel-title"><%~ quotas.Section %></h3>
 			</div>
+
+			<div class="panel-body">
+				<span id="add_quota_label" style="text-decoration:underline" ><%~ AddQuota %>:</span>
+				<div>
+					<%in templates/quotas_template %>
+				</div>
+				<button id="add_quota_button" class="btn btn-default" onclick="addNewQuota()"><%~ AddQuota %></button>
+			</div>
+
+			<div id="internal_divider1" class="internal_divider"></div>
+
+			<span id="active_quotas_label" style="text-decoration:underline" ><%~ ActivQuotas %>:</span>
+
+			<div id="quota_table_container"></div>
+
 		</div>
-
-		<div id='internal_divider1' class='internal_divider'></div>
-
-		<span id="active_quotas_label" style="text-decoration:underline" ><%~ ActivQuotas %>:</span>
-
-		<div id="quota_table_container"></div>
-
-	</fieldset>
-	<div id="bottom_button_container">
-		<input type='button' value='<%~ SaveChanges %>' id="save_button" class="bottom_button" onclick='saveChanges()' />
-		<input type='button' value='<%~ Reset %>' id="reset_button" class="bottom_button" onclick='resetData()'/>
 	</div>
 
-	<span id="update_container" ><%~ WaitSettings %></span>
-</form>
+</div>
 
-<!-- <br /><textarea style="margin-left:20px;" rows=30 cols=60 id='output'></textarea> -->
+<div id="bottom_button_container">
+	<button id="save_button" class="btn btn-primary" onclick="saveChanges()"><%~ SaveChanges %></button>
+	<button id="reset_button" class="btn btn-warning" onclick="resetData()"><%~ Reset %></button>
+</div>
+<span id="update_container" ><%~ WaitSettings %></span>
+
+<!-- <br /><textarea style="margin-left:20px;" rows=30 cols=60 id="output"></textarea> -->
 
 <script>
 <!--
