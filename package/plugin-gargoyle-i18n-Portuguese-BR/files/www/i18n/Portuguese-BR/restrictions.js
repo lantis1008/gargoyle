@@ -1,4 +1,4 @@
-﻿/*
+/*
  * UTF-8 (with BOM) Portuguese-BR text strings for restrictions.sh html elements
  */
 
@@ -6,12 +6,12 @@ restStr.mRestrict="Controle de Acesso";
 restStr.ARSect="Restrições de Acesso (Lista Negra)";
 restStr.NRRule="Adicionar Nova Restrição";
 restStr.ANRule="Adicionar Regra";
-restStr.CRestr="Restrições Cadastradas";
-restStr.EWSect="Exceções de Acesso (Lista Branca)";
-restStr.NExcp="Adicionar Nova Exceção";
-restStr.CExcp="Exceções Cadastradas";
+restStr.CRestr="Restrições Definidas";
+restStr.EWSect="Permissões de Acesso (Lista Branca)";
+restStr.NExcp="Adicionar Nova Permissão";
+restStr.CExcp="Permissões Definidas";
 restStr.ERSect="Editar Restrição de Acesso";
-restStr.EESect="Editar Exceção de Acesso";
+restStr.EESect="Editar Permissão de Acesso";
 
 //templates
 restStr.RDesc="Descrição";
