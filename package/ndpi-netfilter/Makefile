@@ -53,7 +53,7 @@ define KernelPackage/ipt-ndpi
   DEPENDS:= +kmod-nf-conntrack +kmod-nf-conntrack-netlink +kmod-ipt-compat-xtables
   FILES:= \
 	$(PKG_BUILD_DIR)/src/xt_ndpi.ko
-  AUTOLOAD:$(call AutoLoad,45,xt_ndpi)
+  AUTOLOAD:=$(call AutoProbe,xt_ndpi)
 endef
 
 $(eval $(call BuildPackage,iptables-mod-ndpi))
