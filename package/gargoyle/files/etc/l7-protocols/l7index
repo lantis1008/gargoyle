@@ -3,28 +3,220 @@
 #First word is the pattern name
 #Remaining words are the descriptive equivalent that the user sees.
 #
-aim AIM
+#iptables -m ndpi --help | grep '^--' | sed 's/--//g' | cut -f1 -d ' '
+#
+afp AFP
+aimini Aimini
+amazon Amazon
+apple Apple
+apple_icloud Apple iCloud
+apple_itunes Apple iTunes
+applejuice AppleJuice
+armagetron Armagetron
+avi AVI
+ayiya AYIYA
+battlefield Battlefield
+bgp BGP
 bittorrent BitTorrent
+ciscovpn CiscoVPN
+citrix Citrix
+citrix_online Citrix Online
+cloudflare Cloudflare
+cnn CNN
+coap COAP
+collectd Collectd
+corba Corba
+crossfire Crossfire
+dcerpc DCE RPC
+deezer Deezer
+dhcp DHCP
+dhcpv6 DHCPv6
+directconnect Direct Connect
+directdownload Direct Download Link
 dns DNS
+dofus Dofus
+#dpi_check DPI_CHECK
+drda DRDA
+dropbox Dropbox
+eaq EAQ
+ebay eBay
 edonkey eDonkey
+egp EGP
+epp EPP
+facebook Facebook
 fasttrack FastTrack
-ftp FTP
+fiesta Fiesta
+filetopia Filetopia
+flash Flash
+florensia Florensia
+ftp FTP_CONTROL
+ftpdata FTPData
+git GIT
+gmail GMail
 gnutella Gnutella
-http HTTP
-httpaudio HTTP Audio
-httpvideo HTTP Video
-ident Ident
-imap IMAP E-Mail
+google Google
+google_maps Google Maps
+gre GRE
+gtp GTP
+guildwars Guildwars
+h323 H323
+halflife2 Half-Life 2
+hangout Hangout
+hep HEP
+hotmail Hotmail
+hotspot_shield Hotspot Shield
+http_application_activesync HTTP ActiveSync
+http_connect HTTP Connect
+http_download HTTP Download
+http_proxy HTTP Proxy
+http HTTPS
+iax IAX
+icecast Icecast
+icmp ICMP
+icmpv6 ICMPv6
+igmp IGMP
+imaps IMAPS
+instagram Instagram
+ipip IPIP
+ipp IPP
+ipsec IPSEC
 irc IRC
-jabber Jabber
-msnmessenger MSN Messenger
+unencryped_jabber Jabber (Unencrypted)
+kakaotalk Kakaotalk
+kakaotalk_voice Kakaotalk Voice
+kerberos Kerberos
+kontiki Kontiki
+lastfm LastFM
+ldap LDAP
+llmnr LLMNR
+lotusnotes Lotus Notes
+imap MAIL_IMAP
+pop MAIL_POP
+pops MAIL_POPS
+smtp MAIL_SMTP
+smtps MAIL_SMTPS
+maplestory Maplestory
+mdns MDNS
+megaco Megaco
+mgcp MGCP
+microsoft Microsoft
+ms_lync Microsoft Lync
+ms_one_drive Microsoft OneDrive
+mms MMS
+move Move
+mpeg MPEG
+mpegts MPEGTS
+mqtt MQTT
+msn MSN
+mssql MSSQP
+mysql MYSQL
+netbios NetBIOS
+netflix Netflix
+netflow Netflow
+nfs NFS
+noe NOE
 ntp NTP
-pop3 POP3
-skypeout Skype Out Calls
-skypetoskype Skype to Skype
-smtp SMTP E-Mail
-ssh SSH Secure Shell
-ssl SSL Secure Socket
-vnc VNC
+ocs OCS
+office_365 Office 365
+ogg OGG
+opendns OpenDNS
+openft OpenFT
+openvpn OpenVPN
+oracle Oracle
+oscar Oscar
+ospf OSPF
+pando Pando
+pandora Pandora
+pcanywhere pcAnywhere
+postgres POSTGRES
+pplive PPLive
+ppstream PPStream
+pptp PPTP
+qq QQ
+qqlive QQLive
+quake Quake
+quic Quic
+quickplay Quickplay
+quicktime QuickTime
+radius RADIUS
+rdp RDP
+realmedia RealMedia
+redis Redis
+remotescan RemoteScan
+rsync RSync
+rtcp RTCP
+rtmp RTMP
+rtp RTP
+rtsp RTSP
+rx RX
+sap SAP
+sctp SCTP
+sflow sFlow
+shoutcast Shoutcast
+sina Sina
+sip SIP
+skinny Skinny
+skyfile_postpaid Skyfile Postpaid
+skyfile_prepaid Skyfile Prepaid
+skyfile_rudics Skyfile Rudics
+skype Skype
+slack Slack
+smb SMB
+snapchat Snapchat
+snmp SNMP
+socks SOCKS
+socrates SOCRATES
+sopcast Sopcast
+soulseek Soulseek
+spotify Spotify
+ssdp SSDP
+ssh SSH
+ssl_no_cert SSL No Cert
+ssl SSL
+starcraft Starcraft
+stealthnet StealthNet
+steam Steam
+stun STUN
+syslog SYSLOG
+teamspeak Teamspeak
+teamviewer Teamviewer
+telegram Telegram
+telnet TELNET
+teredo Teredo
+tftp TFTP
+thunder Thunder
+tor TOR
+truphone Truphone
+tuenti Tuenti
+tvants Tvants
+tvuplayer Tvuplayer
+twitch Twitch
+twitter Twitter
+ubntac2 Ubiquiti Networks AirControl2
+ubuntuone Ubuntu One
+upnp UPnP
+usenet Usenet
+vevo Vevo
+vhua VHUA
 viber Viber
-rtp VoIP Audio
+vmware VMware
+vnc VNC
+vrrp VRRP
+warcraft3 Warcraft 3
+waze Waze
+webex WebEx
+webm WebM
+whatsapp_voice Whatsapp Voice
+whatsapp Whatsapp
+whois_das Whois DAS
+wikipedia Wikipedia
+windows_update Windows Update
+windowsmedia WindowsMedia
+world_of_kung_fu World of Kung Fu
+worldofwarcraft World of Warcraft
+xbox XBox
+xdmcp XDMCP
+yahoo Yahoo
+youtube Youtube
+zattoo Zattoo
+zmq ZMQ

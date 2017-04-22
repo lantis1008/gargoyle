@@ -132,7 +132,7 @@ create_l7marker_chain()
 	app_proto_shift=16
 	app_proto_mask="0xFF0000"
 
-	all_prots=$(ls /etc/l7-protocols/* | sed 's/^.*\///' | sed 's/\.pat$//' )
+	all_prots=$(cat /etc/l7-protocols/l7index | cut -f 1 -d " ")
 	qos_active=$(ls /etc/rc.d/*qos_gargoyle* 2>/dev/null)
 	if [ -n "$qos_active" ] ; then
 		qos_l7=$(uci show qos_gargoyle | sed '/layer7=/!d; s/^.*=//g')
@@ -149,7 +149,7 @@ create_l7marker_chain()
 			proto_is_used=$(echo "$all_used" | grep "$proto")
 			if [ -n "$proto_is_used" ] ; then
 				app_proto_mark=$(printf "0x%X" $(($app_proto_num << $app_proto_shift)) )
-				iptables -t mangle -A l7marker -m connmark --mark 0x0/$app_proto_mask -m layer7 --l7proto $proto -j CONNMARK --set-mark $app_proto_mark/$app_proto_mask
+				iptables -t mangle -A l7marker -m connmark --mark 0x0/$app_proto_mask -m ndpi --$proto -j CONNMARK --set-mark $app_proto_mark/$app_proto_mask
 				echo "$proto	$app_proto_mark	$app_proto_mask" >> /tmp/l7marker.marks.tmp
 				app_proto_num=$((app_proto_num + 1))
 			fi

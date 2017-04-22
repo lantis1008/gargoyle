@@ -20,6 +20,8 @@ var remoteHttpPort = "";
 var qosUpMask = "";
 var qosDownMask = "";
 var markToQosClass = [];
+var l7Mask = "";
+var markToL7Proto = [];
 
 function initializeConnectionTable()
 {
@@ -60,6 +62,12 @@ function initializeConnectionTable()
 		qosUpMask   = qosMarkList[qmIndex][0] == "upload"   ? mask: qosUpMask;
 		qosDownMask = qosMarkList[qmIndex][0] == "download" ? mask : qosDownMask;
 		markToQosClass[ parseInt(qosMarkList[qmIndex][2]) ] = qosMarkList[qmIndex][1];
+	}
+	var l7Index=0;
+	for(l7Index=0; l7Index < l7MarkList.length; l7Index++)
+	{
+		l7Mask= parseInt((l7MarkList[l7Index][2]).toLowerCase());
+		markToL7Proto[ parseInt(l7MarkList[l7Index][1]) ] = l7MarkList[l7Index][0];
 	}
 
 	updateInProgress = false;
@@ -167,6 +175,13 @@ function updateConnectionTable()
 									return name == "" ? "NA" : name;
 								}
 								tableRow.push( textListToSpanElement([getQosName(qosUpMask, connmark), getQosName(qosDownMask, connmark)]) );
+
+								var getL7Name = function(mask, mark)
+								{
+									var name = mask == "" ? "" : markToL7Proto[ (mask & mark) ];
+									return name === undefined ? "" : name;
+								}
+								l7proto = getL7Name(l7Mask, connmark);
 							}
 							tableRow.push(l7proto);
 							tableData.push(tableRow);

@@ -23,6 +23,10 @@
 	if [ -e /etc/qos_class_marks ] ; then
 		awk '{ print "qosMarkList.push([\""$1"\",\""$2"\",\""$3"\",\""$4"\"]);" }' /etc/qos_class_marks
 	fi
+	echo "var l7MarkList = [];"
+	if [ -e /etc/l7marker.marks ] ; then
+		awk '{ print "l7MarkList.push([\""$1"\",\""$2"\",\""$3"\"]);" }' /etc/l7marker.marks
+	fi
 %>
 //-->
 </script>
