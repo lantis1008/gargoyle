@@ -137,33 +137,11 @@
 			</select>
 		</span>
 
-
 		<span class="col-xs-offset-5 col-xs-7">
 			<select class='form-control' id="exception_app_protocol">
-				<option value='aim '>AIM</option>
-				<option value='bittorrent '>BitTorrent</option>
-				<option value='dns '>DNS</option>
-				<option value='edonkey '>eDonkey</option>
-				<option value='fasttrack '>FastTrack</option>
-				<option value='ftp '>FTP</option>
-				<option value='gnutella '>Gnutella</option>
-				<option value='http '>HTTP</option>
-				<option value='httpaudio '>HTTP Audio</option>
-				<option value='httpvideo '>HTTP Video</option>
-				<option value='ident '>Ident</option>
-				<option value='imap '>IMAP E-Mail</option>
-				<option value='irc '>IRC</option>
-				<option value='jabber '>Jabber</option>
-				<option value='msnmessenger '>MSN Messenger</option>
-				<option value='ntp '>NTP</option>
-				<option value='pop3 '>POP3</option>
-				<option value='skypeout '>Skype Out Calls</option>
-				<option value='skypetoskype '>Skype to Skype</option>
-				<option value='smtp '>SMTP E-Mail</option>
-				<option value='ssh '>SSH Secure Shell</option>
-				<option value='ssl '>SSL Secure Socket</option>
-				<option value='vnc '>VNC</option>
-				<option value='rtp '>VoIP Audio</option>
+				<%
+					sed -e "s/#.*//" -e "s/\([^ ]* \)\(.*\)/<option value='\1'>\2<\/option>/" /etc/l7-protocols/l7index
+				%>
 			</select>
 		</span>
 	</div>

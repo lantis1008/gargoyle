@@ -186,7 +186,7 @@ apply_all_rules()
 					if [ -n "$layer7_connmark" ] ; then
 						match_str="$match_str -m connmark --mark $layer7_connmark/$layer7_mask "
 					else
-						match_str="$match_str -m layer7 --l7proto $option_value"
+						match_str="$match_str -m ndpi --$option_value"
 					fi
 				;;
 				connbytes_kb)
@@ -302,6 +302,7 @@ initialize_qos()
 	insmod cls_flow >&- 2>&-
 	insmod sch_hfsc >&- 2>&-
 	insmod sch_sfq >&- 2>&-
+	insmod xt_ndpi >&- 2>&-
 
 	#Set the atm parameters if pppoe is being used.
 	wan_proto=$(uci get network.wan.proto 2>/dev/null)

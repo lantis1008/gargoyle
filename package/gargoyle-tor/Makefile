@@ -199,7 +199,6 @@ define Package/gargoyle-tor/install
 	$(INSTALL_BIN)  ./files/update_tor_ipset                 $(1)/usr/sbin/update_tor_ipset
 
 	$(INSTALL_CONF) ./files/tor.config                       $(1)/etc/config/tor
-	$(INSTALL_CONF) ./files/oniondns.pat                     $(1)/etc/l7-protocols/oniondns.pat
 endef
 define Package/gargoyle-tor/postinst
 	if [ -z "$${IPKG_INSTROOT}" ] ; then 
