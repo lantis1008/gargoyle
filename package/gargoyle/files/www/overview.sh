@@ -92,10 +92,8 @@
 
 <h1 class="page-header"><%~ overview.Sts %></h1>
 <div class="row">
-
-	<div class="col-lg-4">
+	<div class="col-lg-6">
 		<div id="device_container" class="panel panel-default">
-
 			<div class="panel-heading">
 				<h3 class="panel-title"><%~ overview.mDevice %></h3>
 			</div>
@@ -117,13 +115,11 @@
 					</li>
 				</ul>
 			</div>
-
 		</div>
 	</div>
 
-	<div class="col-lg-4">
+	<div class="col-lg-6">
 		<div id="wan_container" class="panel panel-default">
-
 			<div class="panel-heading">
 				<h3 class="panel-title"><%~ overview.mWAN %></h3>
 			</div>
@@ -139,13 +135,13 @@
 					<li id="wan_3g_container" class="list-group-item"><span class="list-group-item-title"><%~ W3GSS %>:</span><span id="wan_3g"></span></li>
 				</ul>
 			</div>
-
 		</div>
 	</div>
+</div>
 
-	<div class="col-lg-4">
+<div class="row">
+	<div class="col-lg-6">
 		<div id="lan_container" class="panel panel-default">
-
 			<div class="panel-heading">
 				<h3 class="panel-title"><%~ overview.mLAN %></h3>
 			</div>
@@ -158,17 +154,11 @@
 				</ul>
 				<div id="ports_table_container" class="table-responsive"></div>
 			</div>
-
 		</div>
 	</div>
 
-</div>
-
-<div class="row">
-
-	<div class="col-lg-4">
+	<div class="col-lg-6">
 		<div id="wifi_container" class="panel panel-default">
-
 			<div class="panel-heading">
 				<h3 class="panel-title"><%~ overview.mWireless %></h3>
 			</div>
@@ -201,13 +191,60 @@
 					</li>
 				</ul>
 			</div>
-
 		</div>
 	</div>
 
-	<div class="col-lg-4">
-		<div id="time_container" class="panel panel-default">
+	<div class="col-lg-6">
+		<div id="bridge_container" class="panel panel-default">
+			<div class="panel-heading">
+				<h3 class="panel-title"><%~ overview.mBridge %></h3>
+			</div>
 
+			<div class="panel-body">
+				<ul class="list-group">
+					<li class="list-group-item">
+						<span class="list-group-item-title"><%~ BrRIP %>:</span>
+						<span id="bridge_relay_ip"></span>
+					</li>
+
+					<li class="list-group-item">
+						<span class="list-group-item-title"><%~ BrIPA %>:</span>
+						<span id="bridge_ip"></span>
+					</li>
+
+					<li class="list-group-item">
+						<span class="list-group-item-title"><%~ LGtwy %>:</span>
+						<span id="bridge_gateway"></span>
+					</li>
+
+					<li class="list-group-item">
+						<span class="list-group-item-title"><%~ LNmsk %>:</span>
+						<span id="bridge_mask"></span>
+					</li>
+
+					<li class="list-group-item">
+						<span class="list-group-item-title"><%~ BrMAdd %></span>
+						<span id="bridge_mac"></span>
+					</li>
+
+					<li class="list-group-item">
+						<span class="list-group-item-title"><%~ Cvia %>:</span>
+						<span id="bridge_mode"></span>
+					</li>
+
+					<li class="list-group-item">
+						<span class="list-group-item-title"><%~ BrID %>:</span>
+						<span id="bridge_ssid"></span>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="row">
+	<div class="col-lg-6">
+		<div id="time_container" class="panel panel-default">
 			<div class="panel-heading">
 				<h3 class="panel-title"><%~ overview.mTime %></h3>
 			</div>
@@ -225,61 +262,11 @@
 					</li>
 				</ul>
 			</div>
-
 		</div>
 	</div>
 
-	<div class="col-lg-4">
-		<div id="bridge_container" class="panel panel-default">
-
-			<div class="panel-heading">
-				<h3 class="panel-title"><%~ overview.mBridge %></h3>
-			</div>
-
-			<div class="panel-body">
-				<ul class="list-group">
-					<li class="list-group-item">
-						<span class="list-group-item-title"><%~ BrIPA %>:</span>
-						<span id="bridge_ip"></span>
-					</li>
-
-					<li class="list-group-item">
-						<span class="list-group-item-title"><%~ BrNMsk %>:</span>
-						<span id="bridge_mask"></span>
-					</li>
-
-					<li class="list-group-item">
-						<span class="list-group-item-title"><%~ BrMAdd %></span>
-						<span id="bridge_mac"></span>
-					</li>
-
-					<li class="list-group-item">
-						<span class="list-group-item-title"><%~ LGtwy %>:</span>
-						<span id="bridge_gateway"></span>
-					</li>
-
-					<li class="list-group-item">
-						<span class="list-group-item-title"><%~ Cvia %>:</span>
-						<span id="bridge_mode"></span>
-					</li>
-
-					<li class="list-group-item">
-						<span class="list-group-item-title"><%~ BrID %>:</span>
-						<span id="bridge_ssid"></span>
-					</li>
-				</ul>
-			</div>
-
-		</div>
-	</div>
-
-</div>
-
-<div class="row">
-
-	<div class="col-lg-4">
+	<div class="col-lg-6">
 		<div id="services_container" class="panel panel-default">
-
 			<div class="panel-heading">
 				<h3 class="panel-title"><%~ overview.mServices %></h3>
 			</div>
@@ -297,7 +284,6 @@
 					</li>
 				</ul>
 			</div>
-
 		</div>
 	</div>
 

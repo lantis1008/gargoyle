@@ -581,12 +581,14 @@ function setProvider(controlDocument)
 		for(variableIndex = 0; variableIndex < variables.length; variableIndex++)
 		{
 			var div= controlDocument.createElement("div");
-
+			div.className="row form-group";
 			var label = controlDocument.createElement("label");
-			label.className="leftcolumn";
+			label.className="col-xs-5";
 			label.id=variables[variableIndex] + "_label";
 			label.appendChild( controlDocument.createTextNode( (ObjLen(DyDNS)==0 ? variableNames[variableIndex] : eval(variableNames[variableIndex])) + ":" ));
 			div.appendChild(label);
+			var span = controlDocument.createElement("span");
+			span.className="col-xs-7"
 
 			var input;
 			if(allBooleanVariables[ variables[variableIndex] ] != 1)
@@ -599,7 +601,8 @@ function setProvider(controlDocument)
 				input = createInput("checkbox", controlDocument);
 			}
 			input.id = variables[variableIndex];
-			div.appendChild(input);
+			span.appendChild(input);
+			div.appendChild(span);
 			newElements.push(div);
 
 			label.setAttribute("for", input.id);
@@ -847,7 +850,7 @@ function editServiceTableRow()
 	}
 
 	//editServiceWindow is global so we can close it above if it is left open
-	editServiceWindow = window.open("ddns_edit_service.sh", "edit", "width=560,height=500,left=" + xCoor + ",top=" + yCoor );
+	editServiceWindow = window.open("ddns_edit_service.sh", "edit", "width=560,height=510,left=" + xCoor + ",top=" + yCoor );
 
 	var saveButton = createInput("button", editServiceWindow.document);
 	var closeButton = createInput("button", editServiceWindow.document);
