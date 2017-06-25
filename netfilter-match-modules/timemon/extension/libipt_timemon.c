@@ -1,9 +1,11 @@
 /*  timemon --	An iptables extension for time monitoring/control
  *  			Can be used to efficiently monitor time usage and/or implement time quotas
- *  			Can be queried using the ipttimectl userspace library
+ *  			Can be queried using the ipttmctl userspace library
  *  			Originally designed for use with Gargoyle router firmware (gargoyle-router.com)
  *
- *
+ *  Heavily lifted from the ipt_bandwidth extension by Eric Bishop. Most of
+ *  the credit belongs with him.
+ *  Copyright © 2009 by Eric Bishop <eric@gargoyle-router.com>
  *  Copyright © 2017 by Michael Gray <michael.gray@lantisproject.com>
  * 
  *  This file is free software: you may copy, redistribute and/or modify it
