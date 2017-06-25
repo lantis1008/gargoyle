@@ -107,6 +107,24 @@
 </div>
 
 <div>
+	<label class="col-xs-5" id="max_time_combined_label" for='max_time_combined_type'><%~ MaxTimeUpDown %>:</label>
+	<span class="col-xs-7">
+		<select id="max_time_combined_type" onchange='setVisibility()' class='form-control'>
+			<option value="unlimited"><%~ Unlimited %></option>
+			<option value="limited"><%~ Limited %></option>
+		</select>
+		<span id="max_time_combined_container">
+			<input type='text' id='max_time_combined' onkeyup='proofreadDecimal(this)' size='7' maxlength='15' class='form-control' />
+			<select id="max_time_combined_unit" class='form-control'>
+				<option value="minute"><%~ minutes %></option>
+				<option value="hour"><%~ hours %></option>
+				<option value="day"><%~ days %></option>
+			</select>
+		</span>
+	</span>
+</div>
+
+<div>
 	<label class="col-xs-5" id="quota_reset_label" for='quota_reset'><%~ QResets %>:</label>
 	<span class="col-xs-7">
 		<select id="quota_reset" onchange='setVisibility()' class='form-control'>

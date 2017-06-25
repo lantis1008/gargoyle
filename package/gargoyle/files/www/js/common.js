@@ -2962,4 +2962,3 @@ function sidebar()
 	}
 }
 
-
