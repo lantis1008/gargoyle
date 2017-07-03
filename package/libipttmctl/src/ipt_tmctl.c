@@ -797,7 +797,7 @@ static char** split_on_separators(char* line, char* separators, int num_separato
 }
 
 
-time_t* get_interval_starts_for_history(ip_tm_history history)
+time_t* get_interval_starts_for_tm_history(ip_tm_history history)
 {
 	time_t *start_times = NULL;
 	if(history.num_nodes > 0)
@@ -876,7 +876,7 @@ int set_timemon_usage_for_rule_id(char* id, unsigned char zero_unset, unsigned l
 
 
 /* save single id in ascii */
-int save_usage_to_file(ip_tm* data, unsigned long num_ips, char* out_file_path)
+int save_timemon_usage_to_file(ip_tm* data, unsigned long num_ips, char* out_file_path)
 {
 		
 	int success = 0;
@@ -904,7 +904,7 @@ int save_usage_to_file(ip_tm* data, unsigned long num_ips, char* out_file_path)
 }
 
 /* save history (must be for one id only) in binary so it takes up less space */
-int save_history_to_file(ip_tm_history* data, unsigned long num_ips, char* out_file_path)
+int save_timemon_history_to_file(ip_tm_history* data, unsigned long num_ips, char* out_file_path)
 {
 	int success = 0;
 	FILE* out_file = fopen(out_file_path, "wb");
@@ -996,7 +996,7 @@ int save_history_to_file(ip_tm_history* data, unsigned long num_ips, char* out_f
 }
 
 
-ip_tm* load_usage_from_file(char* in_file_path, unsigned long* num_ips, time_t* last_backup)
+ip_tm* load_timemon_usage_from_file(char* in_file_path, unsigned long* num_ips, time_t* last_backup)
 {
 	ip_tm* data = NULL;
 	*num_ips = 0;
@@ -1061,7 +1061,7 @@ ip_tm* load_usage_from_file(char* in_file_path, unsigned long* num_ips, time_t* 
 }
 
 
-ip_tm_history* load_history_from_file(char* in_file_path, unsigned long* num_ips)
+ip_tm_history* load_timemon_history_from_file(char* in_file_path, unsigned long* num_ips)
 {
 	ip_tm_history* data = NULL;
 	*num_ips = 0;
@@ -1141,7 +1141,7 @@ ip_tm_history* load_history_from_file(char* in_file_path, unsigned long* num_ips
 }
 
 
-void print_usage(FILE* out, ip_tm* usage, unsigned long num_ips)
+void print_timemon_usage(FILE* out, ip_tm* usage, unsigned long num_ips)
 {
 	unsigned long usage_index;
 	for(usage_index =0; usage_index < num_ips; usage_index++)
@@ -1161,7 +1161,7 @@ void print_usage(FILE* out, ip_tm* usage, unsigned long num_ips)
 	fprintf(out, "\n");
 }
 
-void print_histories(FILE* out, char* id, ip_tm_history* histories, unsigned long num_histories, char output_type)
+void print_timemon_histories(FILE* out, char* id, ip_tm_history* histories, unsigned long num_histories, char output_type)
 {
 	unsigned long history_index = 0;
 	for(history_index=0; history_index < num_histories; history_index++)
@@ -1205,7 +1205,7 @@ void print_histories(FILE* out, char* id, ip_tm_history* histories, unsigned lon
 			}
 			else
 			{
-				times = get_interval_starts_for_history(history);
+				times = get_interval_starts_for_tm_history(history);
 			}
 
 			int hindex = 0;

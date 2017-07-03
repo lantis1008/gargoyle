@@ -31,10 +31,10 @@ int main(int argc, char **argv)
 	if(argc > 1)
 	{
 		unsigned long num_ips;
-		ip_tm_history* histories = load_history_from_file(argv[1], &num_ips);
+		ip_tm_history* histories = load_timemon_history_from_file(argv[1], &num_ips);
 		if(histories != NULL)
 		{
-			print_histories(stdout, argv[1], histories, num_ips, 'h');
+			print_timemon_histories(stdout, argv[1], histories, num_ips, 'h');
 		}
 	}
 	return 0;

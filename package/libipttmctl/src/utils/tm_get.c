@@ -142,27 +142,27 @@ int main(int argc, char **argv)
 	{
 		if(get_history == 0)
 		{
-			save_usage_to_file( (ip_tm*)ip_buf, num_ips, out_file_path);
+			save_timemon_usage_to_file( (ip_tm*)ip_buf, num_ips, out_file_path);
 		}
 		else
 		{
-			save_history_to_file( (ip_tm_history*)ip_buf, num_ips, out_file_path);
+			save_timemon_history_to_file( (ip_tm_history*)ip_buf, num_ips, out_file_path);
 		}
 	}
 	else
 	{
 		if(get_history == 0)
 		{
-			print_usage(stdout, (ip_tm*)ip_buf, num_ips);
+			print_timemon_usage(stdout, (ip_tm*)ip_buf, num_ips);
 		}
 		else
 		{
-			print_histories(stdout, id, (ip_tm_history*)ip_buf, num_ips, output_type );
+			print_timemon_histories(stdout, id, (ip_tm_history*)ip_buf, num_ips, output_type );
 		}
 	}
 	if(num_ips == 0)
 	{
-	       	if(output_type != 't' && output_type != 'm')
+	    if(output_type != 't' && output_type != 'm')
 		{
 			fprintf(stderr, "No data available for id \"%s\"\n", id);
 		}

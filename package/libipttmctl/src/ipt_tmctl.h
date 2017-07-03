@@ -117,7 +117,7 @@ typedef struct history_struct
 } ip_tm_history;
 #pragma pack(pop)
 
-time_t* get_interval_starts_for_history(ip_tm_history history);
+time_t* get_interval_starts_for_tm_history(ip_tm_history history);
 
 extern void free_ip_tm_histories(ip_tm_history* histories, int num_histories);
 
@@ -133,16 +133,16 @@ extern int set_timemon_usage_for_rule_id(char* id, unsigned char zero_unset, uns
 
 
 
-extern int save_usage_to_file(ip_tm* data, unsigned long num_ips, char* out_file_path);
-extern int save_history_to_file(ip_tm_history* data, unsigned long num_ips, char* out_file_path);
+extern int save_timemon_usage_to_file(ip_tm* data, unsigned long num_ips, char* out_file_path);
+extern int save_timemon_history_to_file(ip_tm_history* data, unsigned long num_ips, char* out_file_path);
 
 
 
-extern ip_tm* load_usage_from_file(char* in_file_path, unsigned long* num_ips, time_t* last_backup);
-extern ip_tm_history* load_history_from_file(char* in_file_path, unsigned long* num_ips);
+extern ip_tm* load_timemon_usage_from_file(char* in_file_path, unsigned long* num_ips, time_t* last_backup);
+extern ip_tm_history* load_timemon_history_from_file(char* in_file_path, unsigned long* num_ips);
 
-extern void print_usage(FILE* out, ip_tm* usage, unsigned long num_ips);
-extern void print_histories(FILE* out, char* id, ip_tm_history* histories, unsigned long num_histories, char output_type);
+extern void print_timemon_usage(FILE* out, ip_tm* usage, unsigned long num_ips);
+extern void print_timemon_histories(FILE* out, char* id, ip_tm_history* histories, unsigned long num_histories, char output_type);
 
 
 

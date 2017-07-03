@@ -23,7 +23,7 @@ include $(INCLUDE_DIR)/package.mk
 define Package/libipttmctl
 	SECTION:=net
 	CATEGORY:=Network
-	DEPENDS:=+iptables-mod-timemon +libiptbwctl
+	DEPENDS:=+iptables-mod-timemon
 	TITLE:=IPT timemon control library
 	URL:=http://www.gargoyle-router.com
 	MAINTAINER:=Michael Gray <michael.gray@lantisproject.com>
@@ -31,7 +31,7 @@ endef
 
 
 define Package/libipttmctl/description
-  IPT bandwidth control library
+  IPT timemon control library
 endef
 
 
@@ -71,11 +71,7 @@ endef
 
 define Package/libipttmctl/install
 	$(INSTALL_DIR) $(1)/usr/lib
-	$(INSTALL_DIR) $(1)/usr/bin
 	$(CP) $(PKG_BUILD_DIR)/*.so* $(1)/usr/lib/
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/utils/tm_get $(1)/usr/bin/tm_get
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/utils/tm_set $(1)/usr/bin/tm_set
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/utils/tm_print_history_file $(1)/usr/bin/tm_print_history_file
 endef
 
 
