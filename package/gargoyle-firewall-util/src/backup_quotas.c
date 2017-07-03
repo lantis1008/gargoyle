@@ -1,8 +1,9 @@
-/*  backup_quotas --	Used to backup quota data from iptables rules that use the "bandwidth" module
+/*  backup_quotas --	Used to backup quota data from iptables rules that use the "bandwidth" and "timemon" modules
  *  			Originally designed for use with Gargoyle router firmware (gargoyle-router.com)
  *
  *
  *  Copyright © 2009 by Eric Bishop <eric@gargoyle-router.com>
+ *  Copyright © 2017 by Michael Gray <michael.gray@lantisproject.com>
  *
  *  This file is free software: you may copy, redistribute and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -27,6 +28,7 @@
 #include <erics_tools.h>
 #include <uci.h>
 #include <ipt_bwctl.h>
+#include <ipt_tmctl.h>
 #define malloc safe_malloc
 #define strdup safe_strdup
 
@@ -42,6 +44,7 @@ int main(void)
 	list* quota_sections = get_all_sections_of_type(ctx, "firewall", "quota");
 	system("mkdir -p /usr/data/quotas");
 	unlock_bandwidth_semaphore_on_exit();
+	unlock_timemon_semaphore_on_exit();
 	while(quota_sections->length > 0)
 	{
 		char* next_quota = shift_list(quota_sections);
@@ -83,15 +86,16 @@ int main(void)
 			}
 
 			
-			char* types[] = { "ingress_limit", "egress_limit", "combined_limit" };
-			char* postfixes[] = { "_ingress", "_egress", "_combined" };
+			char* types[] = { "ingress_limit", "egress_limit", "combined_limit", "time_combined_limit" };
+			char* prefixes[] = { "bw_", "bw_", "bw_", "tm_"};
+			char* postfixes[] = { "_ingress", "_egress", "_combined", "_combined" };
 			int type_index;
-			for(type_index=0; type_index < 3; type_index++)
+			for(type_index=0; type_index < 4; type_index++)
 			{
 				char* defined = get_uci_option(ctx, "firewall", next_quota, types[type_index]);
 				if(defined != NULL)
 				{
-					char* type_id = dynamic_strcat(2, backup_id, postfixes[type_index]);
+					char* type_id = dynamic_strcat(3, prefixes[type_index], backup_id, postfixes[type_index]);
 					
 					backup_quota(type_id, "/usr/data/quotas" );
 
@@ -152,13 +156,27 @@ void backup_quota(char* id, char* quota_backup_dir)
 	char* quota_file_path = dynamic_strcat(3, quota_backup_dir, "/quota_", quota_file_name);
 	
 	unsigned long num_ips;
-	ip_bw *ip_buf = NULL;
-	int query_succeeded = get_all_bandwidth_usage_for_rule_id(id, &num_ips, &ip_buf, 5000);
-	if(query_succeeded)
+	if(strstr(id, "bw_") != NULL)
 	{
-		save_usage_to_file(ip_buf, num_ips, quota_file_path);
-		free(ip_buf);
+		ip_bw *ip_buf = NULL;
+		int query_succeeded = get_all_bandwidth_usage_for_rule_id(id, &num_ips, &ip_buf, 5000);
+		if(query_succeeded)
+		{
+			save_usage_to_file(ip_buf, num_ips, quota_file_path);
+			free(ip_buf);
+		}
 	}
+	else if(strstr(id, "tm_") != NULL)
+	{
+		ip_tm *ip_buf = NULL;
+		int query_succeeded = get_all_timemon_usage_for_rule_id(id, &num_ips, &ip_buf, 5000);
+		if(query_succeeded)
+		{
+			save_timemon_usage_to_file(ip_buf, num_ips, quota_file_path);
+			free(ip_buf);
+		}
+	}
+	
 	free(quota_file_path);
 	free(quota_file_name);	
 }
@@ -224,5 +242,4 @@ char* get_option_value_string(struct uci_option* uopt)
 
 	return opt_str;
 }
-
 
