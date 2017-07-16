@@ -3,7 +3,6 @@
  *
  *
  *  Copyright © 2009-2010 by Eric Bishop <eric@gargoyle-router.com>
- *  Copyright © 2017 by Michael Gray <michael.gray@lantisproject.com>
  *
  *  This file is free software: you may copy, redistribute and/or modify it
  *  under the terms of the GNU General Public License as published by the
