@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 		if(is_history_file)
 		{
 			unsigned long num_ips;
-			ip_tm_history* history_data = load_history_from_file(in_file_path, &num_ips);
+			ip_tm_history* history_data = load_timemon_history_from_file(in_file_path, &num_ips);
 			if(history_data != NULL)
 			{
 				query_succeeded = set_timemon_history_for_rule_id(id, 1, num_ips, history_data, 1000);
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 		{
 			unsigned long num_ips;
 			time_t last_backup;
-			ip_tm* usage_data = load_usage_from_file(in_file_path, &num_ips, &last_backup);
+			ip_tm* usage_data = load_timemon_usage_from_file(in_file_path, &num_ips, &last_backup);
 			if(usage_data != NULL)
 			{
 				query_succeeded = set_timemon_usage_for_rule_id(id, 1, num_ips, last_backup, usage_data, 1000);

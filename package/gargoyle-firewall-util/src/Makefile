@@ -1,13 +1,13 @@
 all: make_iptables_rules delete_chain_from_table backup_quotas restore_quotas print_quotas
 
 print_quotas: print_quotas.c
-	        $(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ -lericstools -luci -liptbwctl
+	        $(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ -lericstools -luci -liptbwctl -lipttmctl
 
 restore_quotas: restore_quotas.c
-	        $(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ -lericstools -luci -liptbwctl
+	        $(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ -lericstools -luci -liptbwctl -lipttmctl
 
 backup_quotas: backup_quotas.c
-	        $(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ -lericstools -luci -liptbwctl
+	        $(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ -lericstools -luci -liptbwctl -lipttmctl
 
 delete_chain_from_table: delete_chain_from_table.c
 	$(CC) $(CFLAGS) $(LDFLAGS)  $^ -o  $@ -lericstools

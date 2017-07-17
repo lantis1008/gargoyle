@@ -100,7 +100,7 @@ typedef struct
     ip_tm_kernel_data_item data_item[0];
 }ip_tm_kernel_data;
 
-typedef struct history_struct
+typedef struct tm_history_struct
 {
 	uint32_t ip;
 	uint32_t num_nodes;

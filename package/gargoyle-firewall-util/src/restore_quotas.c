@@ -858,79 +858,94 @@ void restore_backup_for_id(char* id, char* quota_backup_dir, unsigned char is_in
 	if(strstr(id, "bw_") != NULL)
 	{
 		ip_bw* loaded_backup_data = load_usage_from_file(quota_file_path, &num_ips, &last_backup);
+		if(loaded_backup_data != NULL)
+		{
+			//printf("restoring quota... id=%s, is_individual_other=%d, num_defined_ip_groups=%d\n", id, is_individual_other, defined_ip_groups->length);
+			if(is_individual_other)
+			{
+				//filter out any ips in the "other" data, that have now been assigned quotas of their own.
+				list* ip_bw_list = initialize_list();
+				int ip_index;
+				for(ip_index=0; ip_index < num_ips; ip_index++)
+				{
+					ip_bw* ptr = loaded_backup_data + ip_index;
+					push_list(ip_bw_list, ptr);
+				}
+			
+				unsigned long num_groups = 0;
+				char** group_strs = (char**)get_list_values(defined_ip_groups, &num_groups);
+				unsigned long group_index;
+			
+				for(group_index = 0; group_index < num_groups; group_index++)
+				{
+					filter_group_from_list(&ip_bw_list, group_strs[group_index]);
+				}
+			
+			
+				//rebuild the backup data array from the filtered list
+				if(num_ips != ip_bw_list->length)
+				{
+					num_ips = ip_bw_list->length;
+					ip_bw* adj_backup = (ip_bw*)malloc( (1+ip_bw_list->length)*sizeof(ip_bw) );
+					while(ip_bw_list->length > 0)
+					{
+						ip_bw* next = pop_list(ip_bw_list);
+						adj_backup[ ip_bw_list->length ] = *next;
+					}
+					free(loaded_backup_data);
+					loaded_backup_data = adj_backup;
+				}
+			
+				destroy_list(ip_bw_list, DESTROY_MODE_IGNORE_VALUES, &num_groups);
+				free(group_strs); //don't want to destroy values, they're still contained in list, so just destroy container array
+			}
+			set_bandwidth_usage_for_rule_id(id, 1, num_ips, last_backup, loaded_backup_data, 5000);
+		}
 	}
 	else if(strstr(id, "tm_") != NULL)
 	{
 		ip_tm* loaded_backup_data = load_timemon_usage_from_file(quota_file_path, &num_ips, &last_backup);
-	}
-	if(loaded_backup_data != NULL)
-	{
-		//printf("restoring quota... id=%s, is_individual_other=%d, num_defined_ip_groups=%d\n", id, is_individual_other, defined_ip_groups->length);
-		if(is_individual_other)
+		if(loaded_backup_data != NULL)
 		{
-			//filter out any ips in the "other" data, that have now been assigned quotas of their own.
-			list* ip_bw_list = initialize_list();
-			int ip_index;
-			for(ip_index=0; ip_index < num_ips; ip_index++)
+			//printf("restoring quota... id=%s, is_individual_other=%d, num_defined_ip_groups=%d\n", id, is_individual_other, defined_ip_groups->length);
+			if(is_individual_other)
 			{
-				if(strstr(id, "bw_") != NULL)
-				{
-					ip_bw* ptr = loaded_backup_data + ip_index;
-				}
-				else if(strstr(id, "tm_") != NULL)
+				//filter out any ips in the "other" data, that have now been assigned quotas of their own.
+				list* ip_bw_list = initialize_list();
+				int ip_index;
+				for(ip_index=0; ip_index < num_ips; ip_index++)
 				{
 					ip_tm* ptr = loaded_backup_data + ip_index;
+					push_list(ip_bw_list, ptr);
 				}
-				push_list(ip_bw_list, ptr);
-			}
 			
-			unsigned long num_groups = 0;
-			char** group_strs = (char**)get_list_values(defined_ip_groups, &num_groups);
-			unsigned long group_index;
+				unsigned long num_groups = 0;
+				char** group_strs = (char**)get_list_values(defined_ip_groups, &num_groups);
+				unsigned long group_index;
 			
-			for(group_index = 0; group_index < num_groups; group_index++)
-			{
-				filter_group_from_list(&ip_bw_list, group_strs[group_index]);
-			}
-			
-			
-			//rebuild the backup data array from the filtered list
-			if(num_ips != ip_bw_list->length)
-			{
-				num_ips = ip_bw_list->length;
-				if(strstr(id, "bw_") != NULL)
+				for(group_index = 0; group_index < num_groups; group_index++)
 				{
-					ip_bw* adj_backup = (ip_bw*)malloc( (1+ip_bw_list->length)*sizeof(ip_bw) );
+					filter_group_from_list(&ip_bw_list, group_strs[group_index]);
 				}
-				else if(strstr(id, "tm_") != NULL)
+			
+			
+				//rebuild the backup data array from the filtered list
+				if(num_ips != ip_bw_list->length)
 				{
+					num_ips = ip_bw_list->length;
 					ip_tm* adj_backup = (ip_tm*)malloc( (1+ip_bw_list->length)*sizeof(ip_tm) );
-				}
-				while(ip_bw_list->length > 0)
-				{
-					if(strstr(id, "bw_") != NULL)
-					{
-						ip_bw* next = pop_list(ip_bw_list);
-					}
-					else if(strstr(id, "tm_") != NULL)
+					while(ip_bw_list->length > 0)
 					{
 						ip_tm* next = pop_list(ip_bw_list);
+						adj_backup[ ip_bw_list->length ] = *next;
 					}
-					adj_backup[ ip_bw_list->length ] = *next;
+					free(loaded_backup_data);
+					loaded_backup_data = adj_backup;
 				}
-				free(loaded_backup_data);
-				loaded_backup_data = adj_backup;
-			}
 			
-			destroy_list(ip_bw_list, DESTROY_MODE_IGNORE_VALUES, &num_groups);
-			free(group_strs); //don't want to destroy values, they're still contained in list, so just destroy container array
-		}
-		if(strstr(id, "bw_") != NULL)
-		{
-			set_bandwidth_usage_for_rule_id(id, 1, num_ips, last_backup, loaded_backup_data, 5000);
-		}
-		else if(strstr(id, "tm_") != NULL)
-		{
+				destroy_list(ip_bw_list, DESTROY_MODE_IGNORE_VALUES, &num_groups);
+				free(group_strs); //don't want to destroy values, they're still contained in list, so just destroy container array
+			}
 			set_timemon_usage_for_rule_id(id, 1, num_ips, last_backup, loaded_backup_data, 5000);
 		}
 	}

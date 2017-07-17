@@ -144,105 +144,168 @@ int main(void)
 				{
 					ip_bw* ip_buf;
 					int query_succeeded = get_all_bandwidth_usage_for_rule_id(type_id, &num_ips, &ip_buf, 5000);
+					if(query_succeeded && num_ips > 0)
+					{
+						unsigned long ip_index = 0;
+						for(ip_index = 0; ip_index < num_ips; ip_index++)
+						{
+							ip_bw next = ip_buf[ip_index];
+							char* next_ip = NULL;
+							if(next.ip == 0)
+							{
+								next_ip = strdup(ip);
+							}
+							else
+							{
+								struct in_addr addr;
+								addr.s_addr = next.ip;
+								next_ip = strdup(inet_ntoa(addr));
+							}
+						
+						
+							uint64_t *bw_list = get_string_map_element(ip_to_bandwidth,next_ip);
+							if(bw_list == NULL)
+							{
+								bw_list = (uint64_t*)malloc(sizeof(uint64_t)*8);
+								bw_list[0] = 0;
+								bw_list[1] = 0;
+								bw_list[2] = 0;
+								bw_list[3] = 0;
+								bw_list[4] = 0;
+								bw_list[5] = 0;
+								bw_list[6] = 0;
+								bw_list[7] = 0;
+								set_string_map_element(ip_to_bandwidth, next_ip, bw_list);
+							}
+							bw_list[type_index] = 1;
+							char bw_str[50];
+							bw_list[type_index+4] = next.bw;
+							sprintf(bw_str, "%lld", next.bw);
+
+							double bw_percent;
+							double bw_limit;
+							uint64_t bw_limit_64;
+							sscanf(bw_str, "%lf", &bw_percent);
+							sscanf(limit, "%lf", &bw_limit);
+							sscanf(limit, "%lld", &bw_limit_64);
+							if(bw_limit > 0)
+							{
+								bw_percent = (bw_percent*100.0)/bw_limit;
+								bw_percent = bw_percent > 100.0 ? 100.0 : bw_percent;
+							}
+							else
+							{
+								bw_percent = 100.0;
+							}
+					
+							double* percent_list = get_string_map_element(ip_to_percents, next_ip);
+							if(percent_list == NULL)
+							{
+								percent_list = (double*)malloc(sizeof(double)*4);
+								percent_list[0] = -1;
+								percent_list[1] = -1;
+								percent_list[2] = -1;
+								percent_list[3] = -1;
+								set_string_map_element(ip_to_percents, next_ip, percent_list);
+							}
+							percent_list[type_index] = bw_percent;
+
+							uint64_t* limit_list = get_string_map_element(ip_to_limits, next_ip);
+							if(limit_list == NULL)
+							{
+								limit_list = (uint64_t*)malloc(sizeof(uint64_t)*4);
+								limit_list[0] = -1;
+								limit_list[1] = -1;
+								limit_list[2] = -1;
+								limit_list[3] = -1;
+								set_string_map_element(ip_to_limits, next_ip, limit_list);
+							}
+							limit_list[type_index] = bw_limit_64;
+						}
+					}
 				}
 				else if(strstr(id, "tm_") != NULL)
 				{
 					ip_tm* ip_buf;
 					int query_succeeded = get_all_timemon_usage_for_rule_id(type_id, &num_ips, &ip_buf, 5000);
-				}
-
-				if(query_succeeded && num_ips > 0)
-				{
-					unsigned long ip_index = 0;
-					for(ip_index = 0; ip_index < num_ips; ip_index++)
+					if(query_succeeded && num_ips > 0)
 					{
-						if(strstr(id, "bw_") != NULL)
-						{
-							ip_bw next = ip_buf[ip_index];
-						}
-						else if(strstr(id, "tm_") != NULL)
+						unsigned long ip_index = 0;
+						for(ip_index = 0; ip_index < num_ips; ip_index++)
 						{
 							ip_tm next = ip_buf[ip_index];
-						}
-						char* next_ip = NULL;
-						if(next.ip == 0)
-						{
-							next_ip = strdup(ip);
-						}
-						else
-						{
-							struct in_addr addr;
-							addr.s_addr = next.ip;
-							next_ip = strdup(inet_ntoa(addr));
-						}
+							char* next_ip = NULL;
+							if(next.ip == 0)
+							{
+								next_ip = strdup(ip);
+							}
+							else
+							{
+								struct in_addr addr;
+								addr.s_addr = next.ip;
+								next_ip = strdup(inet_ntoa(addr));
+							}
 						
 						
-						uint64_t *bw_list = get_string_map_element(ip_to_bandwidth,next_ip);
-						if(bw_list == NULL)
-						{
-							bw_list = (uint64_t*)malloc(sizeof(uint64_t)*8);
-							bw_list[0] = 0;
-							bw_list[1] = 0;
-							bw_list[2] = 0;
-							bw_list[3] = 0;
-							bw_list[4] = 0;
-							bw_list[5] = 0;
-							bw_list[6] = 0;
-							bw_list[7] = 0;
-							set_string_map_element(ip_to_bandwidth, next_ip, bw_list);
-						}
-						bw_list[type_index] = 1;
-						char bw_str[50];
-						if(strstr(id, "bw_") != NULL)
-						{
-							bw_list[type_index+4] = next.bw;
-							sprintf(bw_str, "%lld", next.bw);
-						}
-						else if(strstr(id, "tm_") != NULL)
-						{
+							uint64_t *bw_list = get_string_map_element(ip_to_bandwidth,next_ip);
+							if(bw_list == NULL)
+							{
+								bw_list = (uint64_t*)malloc(sizeof(uint64_t)*8);
+								bw_list[0] = 0;
+								bw_list[1] = 0;
+								bw_list[2] = 0;
+								bw_list[3] = 0;
+								bw_list[4] = 0;
+								bw_list[5] = 0;
+								bw_list[6] = 0;
+								bw_list[7] = 0;
+								set_string_map_element(ip_to_bandwidth, next_ip, bw_list);
+							}
+							bw_list[type_index] = 1;
+							char bw_str[50];
 							bw_list[type_index+4] = next.tm;
 							sprintf(bw_str, "%lld", next.tm);
-						}
 
-						double bw_percent;
-						double bw_limit;
-						uint64_t bw_limit_64;
-						sscanf(bw_str, "%lf", &bw_percent);
-						sscanf(limit, "%lf", &bw_limit);
-						sscanf(limit, "%lld", &bw_limit_64);
-						if(bw_limit > 0)
-						{
-							bw_percent = (bw_percent*100.0)/bw_limit;
-							bw_percent = bw_percent > 100.0 ? 100.0 : bw_percent;
-						}
-						else
-						{
-							bw_percent = 100.0;
-						}
+							double bw_percent;
+							double bw_limit;
+							uint64_t bw_limit_64;
+							sscanf(bw_str, "%lf", &bw_percent);
+							sscanf(limit, "%lf", &bw_limit);
+							sscanf(limit, "%lld", &bw_limit_64);
+							if(bw_limit > 0)
+							{
+								bw_percent = (bw_percent*100.0)/bw_limit;
+								bw_percent = bw_percent > 100.0 ? 100.0 : bw_percent;
+							}
+							else
+							{
+								bw_percent = 100.0;
+							}
 					
-						double* percent_list = get_string_map_element(ip_to_percents, next_ip);
-						if(percent_list == NULL)
-						{
-							percent_list = (double*)malloc(sizeof(double)*4);
-							percent_list[0] = -1;
-							percent_list[1] = -1;
-							percent_list[2] = -1;
-							percent_list[3] = -1;
-							set_string_map_element(ip_to_percents, next_ip, percent_list);
-						}
-						percent_list[type_index] = bw_percent;
+							double* percent_list = get_string_map_element(ip_to_percents, next_ip);
+							if(percent_list == NULL)
+							{
+								percent_list = (double*)malloc(sizeof(double)*4);
+								percent_list[0] = -1;
+								percent_list[1] = -1;
+								percent_list[2] = -1;
+								percent_list[3] = -1;
+								set_string_map_element(ip_to_percents, next_ip, percent_list);
+							}
+							percent_list[type_index] = bw_percent;
 
-						uint64_t* limit_list = get_string_map_element(ip_to_limits, next_ip);
-						if(limit_list == NULL)
-						{
-							limit_list = (uint64_t*)malloc(sizeof(uint64_t)*4);
-							limit_list[0] = -1;
-							limit_list[1] = -1;
-							limit_list[2] = -1;
-							limit_list[3] = -1;
-							set_string_map_element(ip_to_limits, next_ip, limit_list);
+							uint64_t* limit_list = get_string_map_element(ip_to_limits, next_ip);
+							if(limit_list == NULL)
+							{
+								limit_list = (uint64_t*)malloc(sizeof(uint64_t)*4);
+								limit_list[0] = -1;
+								limit_list[1] = -1;
+								limit_list[2] = -1;
+								limit_list[3] = -1;
+								set_string_map_element(ip_to_limits, next_ip, limit_list);
+							}
+							limit_list[type_index] = bw_limit_64;
 						}
-						limit_list[type_index] = bw_limit_64;
 					}
 				}
 				free(type_id);
