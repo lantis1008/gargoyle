@@ -140,7 +140,7 @@ int main(void)
 			{
 				char* type_id = dynamic_strcat(3, prefixes[type_index], id, postfixes[type_index]);
 				unsigned long num_ips = 0;
-				if(strstr(id, "bw_") != NULL)
+				if(strstr(type_id, "bw_") != NULL)
 				{
 					ip_bw* ip_buf;
 					int query_succeeded = get_all_bandwidth_usage_for_rule_id(type_id, &num_ips, &ip_buf, 5000);
@@ -224,7 +224,7 @@ int main(void)
 						}
 					}
 				}
-				else if(strstr(id, "tm_") != NULL)
+				else if(strstr(type_id, "tm_") != NULL)
 				{
 					ip_tm* ip_buf;
 					int query_succeeded = get_all_timemon_usage_for_rule_id(type_id, &num_ips, &ip_buf, 5000);

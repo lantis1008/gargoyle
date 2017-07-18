@@ -109,6 +109,7 @@ int main(int argc, char** argv)
 	delete_chain_from_table(quota_table, "egress_quotas");
 	delete_chain_from_table(quota_table, "ingress_quotas");
 	delete_chain_from_table(quota_table, "combined_quotas");
+	delete_chain_from_table(quota_table, "time_combined_quotas");
 	delete_chain_from_table(quota_table, "forward_quotas");
 	delete_chain_from_table("nat", "quota_redirects");
 
@@ -227,6 +228,7 @@ int main(int argc, char** argv)
 		run_shell_command(dynamic_strcat(3, "iptables -t ", quota_table, " -N egress_quotas 2>/dev/null"), 1);
 		run_shell_command(dynamic_strcat(3, "iptables -t ", quota_table, " -N ingress_quotas 2>/dev/null"), 1);
 		run_shell_command(dynamic_strcat(3, "iptables -t ", quota_table, " -N combined_quotas 2>/dev/null"), 1);
+		run_shell_command(dynamic_strcat(3, "iptables -t ", quota_table, " -N time_combined_quotas 2>/dev/null"), 1);
 		
 		run_shell_command("iptables -t nat -N quota_redirects 2>/dev/null", 0);
 		run_shell_command("iptables -t nat -A quota_redirects -j CONNMARK --set-mark 0x0/0xFF000000 2>/dev/null", 0);
@@ -235,8 +237,10 @@ int main(int argc, char** argv)
 		char* no_death_mark_test = dynamic_strcat(3, " -m connmark --mark 0x0/", death_mask, " ");
 		run_shell_command(dynamic_strcat(6, "iptables -t ", quota_table, " -I INPUT  1 -i ", wan_if, no_death_mark_test, " -j ingress_quotas  2>/dev/null"), 1);
 		run_shell_command(dynamic_strcat(6, "iptables -t ", quota_table, " -I INPUT  2 -i ", wan_if, no_death_mark_test, " -j combined_quotas 2>/dev/null"), 1);
+		run_shell_command(dynamic_strcat(6, "iptables -t ", quota_table, " -I INPUT  3 -i ", wan_if, no_death_mark_test, " -j time_combined_quotas 2>/dev/null"), 1);
 		run_shell_command(dynamic_strcat(6, "iptables -t ", quota_table, " -I OUTPUT 1 -o ", wan_if, no_death_mark_test, " -j egress_quotas   2>/dev/null"), 1);
 		run_shell_command(dynamic_strcat(6, "iptables -t ", quota_table, " -I OUTPUT 2 -o ", wan_if, no_death_mark_test, " -j combined_quotas 2>/dev/null"), 1);
+		run_shell_command(dynamic_strcat(6, "iptables -t ", quota_table, " -I OUTPUT 3 -o ", wan_if, no_death_mark_test, " -j time_combined_quotas 2>/dev/null"), 1);
 	
 
 		run_shell_command(dynamic_strcat(3, "iptables -t ", quota_table, " -I FORWARD -j forward_quotas 2>/dev/null"), 1);
@@ -245,6 +249,7 @@ int main(int argc, char** argv)
 		run_shell_command(dynamic_strcat(6, "iptables -t ", quota_table, " -A forward_quotas -i ", wan_if, no_death_mark_test, " -j CONNMARK --set-mark 0x0F000000/0x0F000000  2>/dev/null"), 1);
 		run_shell_command(dynamic_strcat(6, "iptables -t ", quota_table, " -A forward_quotas -o ", wan_if, no_death_mark_test, " -j CONNMARK --set-mark 0x0F000000/0x0F000000  2>/dev/null"), 1);
 		run_shell_command(dynamic_strcat(3, "iptables -t ", quota_table, " -A forward_quotas -m connmark --mark 0x0F000000/0x0F000000 -j combined_quotas  2>/dev/null"), 1);
+		run_shell_command(dynamic_strcat(3, "iptables -t ", quota_table, " -A forward_quotas -m connmark --mark 0x0F000000/0x0F000000 -j time_combined_quotas  2>/dev/null"), 1);
 		run_shell_command(dynamic_strcat(3, "iptables -t ", quota_table, " -A forward_quotas -j CONNMARK --set-mark 0x0/0x0F000000  2>/dev/null"), 1);
 		free(no_death_mark_test);
 
@@ -462,7 +467,7 @@ int main(int argc, char** argv)
 					char* chains[] =  { "ingress_quotas", "egress_quotas", "combined_quotas", "time_combined_quotas" };
 					
 					int type_index;
-					for(type_index=0; type_index < 3; type_index++)
+					for(type_index=0; type_index < 4; type_index++)
 					{
 						char** ip_egress_tests = NULL;
 						char* applies_to = strdup("combined");
