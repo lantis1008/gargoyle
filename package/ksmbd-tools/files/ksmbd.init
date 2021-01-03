@@ -1,0 +1,242 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2008-2012 OpenWrt.org
+
+START=60
+USE_PROCD=1
+
+SMBD_IFACE=""
+found_sambashare="0"
+
+smb_header() {
+	config_get SMBD_IFACE $1 interface "lan"
+
+	# resolve interfaces
+	local interfaces=$(
+		. /lib/functions/network.sh
+
+		local net
+		for net in $SMBD_IFACE; do
+			local device
+			network_is_up $net || continue
+			network_get_device device "$net"
+			echo -n "${device:-$net} "
+		done
+	)
+
+	local name workgroup description charset
+	local hostname="$(uci_get system.@system[0].hostname)"
+
+	config_get 		name        				$1 name							"${hostname:-Gargoyle}"
+	config_get 		workgroup   				$1 workgroup					"${hostname:-Gargoyle}"
+	config_get 		description 				$1 description					"Ksmbd on ${hostname:-Gargoyle}"
+	config_get 		charset     				$1 charset						"UTF-8"
+	config_get_bool ALLOW_LEGACY_PROTOCOLS		$1 allow_legacy_protocols		0
+
+	sed -e "s#|NAME|#$name#g" \
+	    -e "s#|WORKGROUP|#$workgroup#g" \
+	    -e "s#|DESCRIPTION|#$description#g" \
+	    -e "s#|INTERFACES|#$interfaces#g" \
+	    -e "s#|CHARSET|#$charset#g" \
+	    /etc/ksmbd/smb.conf.template > /var/etc/ksmbd/smb.conf
+
+	local homes
+	config_get_bool homes $1 homes 0
+	[ $homes -gt 0 ] && {
+		cat <<EOT >> /var/etc/ksmbd/smb.conf
+
+[homes]
+	comment     = Home Directories
+	browsable   = no
+	read only   = no
+	create mode = 0750
+EOT
+	}
+	
+	if [ "$ALLOW_LEGACY_PROTOCOLS" -eq 1 ] ; then
+		 sed -i -e "s#\(server min protocol = \)SMB2_10#\1NT1#g" /var/etc/ksmbd/smb.conf
+	fi
+
+	[ -L /etc/ksmbd/smb.conf ] || ln -nsf /var/etc/ksmbd/smb.conf /etc/ksmbd/smb.conf
+}
+
+rw_user_list=""
+ro_user_list=""
+all_user_list=""
+
+add_user_to_lists()
+{
+	user="$1"
+	read_type="$2"
+
+	local rw_comma
+	local ro_comma
+	local all_comma
+	if [ "$read_type" = "rw" ] ; then
+		if [ -z "$rw_user_list" ] ; then  rw_comma="" ; else rw_comma=", " ; fi
+		rw_user_list="$rw_user_list$rw_comma$user"
+	else
+		if [ -z "$ro_user_list" ] ; then  ro_comma="" ; else ro_comma=", " ; fi
+		ro_user_list="$ro_user_list$ro_comma$user"
+	fi
+	if [ -z "$all_user_list" ] ; then all_comma="" ; else all_comma=", " ; fi
+	all_user_list="$all_user_list$all_comma$user"
+}
+
+smb_add_share() {
+	local name
+	local path
+	local comment
+	#local users
+	local create_mask
+	local dir_mask
+	local browseable
+	local read_only
+	local writeable
+	local guest_ok
+	local guest_acct
+	#local force_root
+	#local write_list
+	#local read_list
+	local hide_dot_files
+	local veto_files
+	local inherit_owner
+	local force_create_mode
+	local force_directory_mode
+	local all_comma
+
+	config_get name $1 name
+	config_get path $1 path
+	config_get comment $1 comment
+	#config_get users $1 users
+	config_get create_mask $1 create_mask
+	config_get dir_mask $1 dir_mask
+	config_get browseable $1 browseable
+	config_get read_only $1 read_only
+	config_get writeable $1 writeable
+	config_get guest_ok $1 guest_ok
+	#config_get_bool force_root $1 force_root 0
+	#config_get write_list $1 write_list
+	#config_get read_list $1 read_list
+	config_get hide_dot_files $1 hide_dot_files
+	config_get veto_files $1 veto_files
+	config_get inherit_owner $1 inherit_owner
+	config_get force_create_mode $1 force_create_mode
+	config_get force_directory_mode $1 force_directory_mode
+
+	rw_user_list=""
+	ro_user_list=""
+	all_user_list=""
+	config_list_foreach $1 users_ro add_user_to_lists "ro"
+	config_list_foreach $1 users_rw add_user_to_lists "rw"
+
+	guest_acct=$(grep "guest account" /var/etc/ksmbd/smb.conf | sed 's/\tguest account = //g')
+	if [ "$guest_ok" = "yes" -a -n "$guest_acct" ] ; then
+		if [ -z "$all_user_list" ] ; then all_comma="" ; else all_comma=", " ; fi
+		all_user_list="$all_user_list$all_comma$guest_acct"
+	fi
+
+	[ -z "$name" -o -z "$path" ] && return
+
+	echo -e "\n[$name]\n\tpath = $path" >> /var/etc/ksmbd/smb.conf
+	[ -n "$comment" ] && echo -e "\tcomment = $comment" >> /var/etc/ksmbd/smb.conf
+	
+	[ -n "$all_user_list" ] && echo -e "\tvalid users = $all_user_list" >> /var/etc/ksmbd/smb.conf
+	[ -n "$rw_user_list" ] && echo -e "\twrite list = $rw_user_list" >> /var/etc/ksmbd/smb.conf
+	[ -n "$ro_user_list" ] && echo -e "\tread list = $ro_user_list" >> /var/etc/ksmbd/smb.conf
+	
+	[ -n "$create_mask" ] && echo -e "\tcreate mask = $create_mask" >> /var/etc/ksmbd/smb.conf
+	[ -n "$dir_mask" ] && echo -e "\tdirectory mask = $dir_mask" >> /var/etc/ksmbd/smb.conf
+	[ -n "$force_create_mode" ] && echo -e "\tforce create mode = $force_create_mode" >> /var/etc/ksmbd/smb.conf
+	[ -n "$force_directory_mode" ] && echo -e "\tforce directory mode = $force_directory_mode" >> /var/etc/ksmbd/smb.conf
+	
+	[ -n "$browseable" ] && echo -e "\tbrowseable = $browseable" >> /var/etc/ksmbd/smb.conf
+	[ -n "$read_only" ] && echo -e "\tread only = $read_only" >> /var/etc/ksmbd/smb.conf
+	[ -n "$writeable" ] && echo -e "\twriteable = $writeable" >> /var/etc/ksmbd/smb.conf
+	
+	[ -n "$guest_ok" ] && echo -e "\tguest ok = $guest_ok" >> /var/etc/ksmbd/smb.conf
+	[ -n "$inherit_owner" ] && echo -e "\tinherit owner = $inherit_owner" >> /var/etc/ksmbd/smb.conf
+	
+	[ -n "$hide_dot_files" ] && echo -e "\thide dot files = $hide_dot_files" >> /var/etc/ksmbd/smb.conf
+	[ -n "$veto_files" ] && echo -e "\tveto files = $veto_files" >> /var/etc/ksmbd/smb.conf
+
+	found_sambashare="1"
+}
+
+init_config() {
+	mkdir -p /var/etc
+	mkdir -p /var/etc/ksmbd
+
+	config_load ksmbd
+	config_foreach smb_header samba
+	config_foreach smb_add_share sambashare
+}
+
+service_triggers() {
+	procd_add_reload_trigger "dhcp" "system" "ksmbd"
+
+	local i
+	for i in $SMBD_IFACE; do
+		procd_add_reload_interface_trigger $i
+	done
+}
+
+kill_server()
+{
+	if [ -e /sys/module/ksmbd ]; then
+		if [ -e /sys/class/ksmbd-control/kill_server ]; then
+			logger -p daemon.info -t 'ksmbd' "triggering kill_server"
+			echo hard > /sys/class/ksmbd-control/kill_server
+		fi
+	fi
+}
+
+start_service() {
+	init_config
+	
+	if [ ! -e /etc/ksmbd/smb.conf ]; then
+		logger -p daemon.error -t 'ksmbd' "missing config /etc/ksmbd/smb.conf!"
+		exit 1
+	fi
+	
+	kill_server
+	
+	if [ "$found_sambashare" = "1" ] ; then
+		sleep 3
+		[ ! -e /sys/module/ksmbd ] && modprobe ksmbd 2> /dev/null
+		if [ ! -e /sys/module/ksmbd ]; then
+			logger -p daemon.error -t 'ksmbd' "modprobe of ksmbd module failed, can\'t start ksmbd!"
+			exit 1
+		fi
+
+		logger -p daemon.notice -t 'ksmbd' "Starting Ksmbd userspace service."
+		procd_open_instance
+		procd_add_mdns "smb" "tcp" "445"
+		procd_set_param command /usr/sbin/ksmbd.mountd --n
+		procd_set_param file /var/etc/ksmbd/smb.conf
+		procd_set_param limits nofile=16384
+		procd_close_instance
+	fi
+}
+
+stop_service()
+{
+	logger -p daemon.notice -t 'ksmbd' "Stopping Ksmbd userspace service."
+	killall ksmbd.mountd > /dev/null 2>&1
+	
+	[ -e /sys/module/ksmbd ] && rmmod ksmbd > /dev/null 2>&1
+	# kill server if we cant rmmod
+	[ -e /sys/module/ksmbd ] && kill_server
+	# next try
+	[ -e /sys/module/ksmbd ] && rmmod ksmbd > /dev/null 2>&1
+	
+	if [ -e /sys/module/ksmbd ]; then
+		logger -p daemon.error -t 'ksmbd' "module still loaded after kill_server?"
+	fi
+	[ -f /tmp/ksmbd.lock ] && rm /tmp/ksmbd.lock
+}
+
+restart()
+{
+	stop
+	start
+}
