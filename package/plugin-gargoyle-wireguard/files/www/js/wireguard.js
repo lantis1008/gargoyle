@@ -1089,38 +1089,50 @@ function parseCfg(cfgdata)
 			}
 		}
 		// Do interface
-		var cfgdataidx = 0;		
+		var cfgdataidx = 0;
 		for(cfgdataidx = interfaceStart+1; cfgdataidx <= interfaceStop; cfgdataidx++)
 		{
-			var lineParts = cfgdata[cfgdataidx].split(" = ");
-			if(lineParts[0] == "Address")
+			var lineParts = cfgdata[cfgdataidx].split("=");
+			if(lineParts.length >= 2)
 			{
-				var subLineParts = lineParts[1].split("/");
-				document.getElementById("wireguard_client_ip").value = subLineParts[0];
-			}
-			else if(lineParts[0] == "PrivateKey")
-			{
-				document.getElementById("wireguard_client_privkey").value = lineParts[1];
-				setPubkeyFromPrivkey(lineParts[1],"wireguard_client_pubkey");
+				var key = lineParts[0].trim();
+				var value = lineParts.slice(1).join("=").trim();
+
+				if(key == "Address")
+				{
+					var subLineParts = value.split("/");
+					document.getElementById("wireguard_client_ip").value = subLineParts[0];
+				}
+				else if(key == "PrivateKey")
+				{
+					document.getElementById("wireguard_client_privkey").value = value;
+					setPubkeyFromPrivkey(value,"wireguard_client_pubkey");
+				}
 			}
 		}
 		// Do peer (server)
 		for(cfgdataidx = peerStart+1; cfgdataidx <= peerStop; cfgdataidx++)
 		{
-			var lineParts = cfgdata[cfgdataidx].split(" = ");
-			if(lineParts[0] == "AllowedIPs")
+			var lineParts = cfgdata[cfgdataidx].split("=");
+			if(lineParts.length >= 2)
 			{
-				document.getElementById("wireguard_client_allowed_ips").value = lineParts[1];
-			}
-			else if(lineParts[0] == "Endpoint")
-			{
-				var subLineParts = lineParts[1].split(":");
-				document.getElementById("wireguard_client_server_host").value = subLineParts[0];
-				document.getElementById("wireguard_client_server_port").value = subLineParts[1];
-			}
-			else if(lineParts[0] == "PublicKey")
-			{
-				document.getElementById("wireguard_client_server_pubkey").value = lineParts[1];
+				var key = lineParts[0].trim();
+				var value = lineParts.slice(1).join("=").trim();
+
+				if(key == "AllowedIPs")
+				{
+					document.getElementById("wireguard_client_allowed_ips").value = value;
+				}
+				else if(key == "Endpoint")
+				{
+					var subLineParts = value.split(":");
+					document.getElementById("wireguard_client_server_host").value = subLineParts[0];
+					document.getElementById("wireguard_client_server_port").value = subLineParts[1];
+				}
+				else if(key == "PublicKey")
+				{
+					document.getElementById("wireguard_client_server_pubkey").value = value;
+				}
 			}
 		}
 		wireguard_client_config_manual.checked = true;
