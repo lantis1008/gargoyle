@@ -39,6 +39,7 @@
 #include <linux/netfilter/nft_bandwidth.h>
 
 #include <linux/ip.h>
+#include <linux/if_vlan.h>
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
 
@@ -1181,7 +1182,7 @@ static uint64_t* initialize_map_entries_for_ip(info_and_maps* iam, char* ip, uin
 	return new_bw;
 }
 
-static bool bandwidth_mt4(struct nft_bandwidth_info *priv, const struct sk_buff *skb)
+static bool bandwidth_mt4(struct nft_bandwidth_info *priv, const struct sk_buff *skb, uint16_t iphdroffset)
 {
 	ktime_t now;
 	int match_found;
@@ -1296,7 +1297,7 @@ static bool bandwidth_mt4(struct nft_bandwidth_info *priv, const struct sk_buff 
 	}
 	else
 	{
-		struct iphdr* iph = (struct iphdr*)(skb_network_header(skb));
+		struct iphdr* iph = (struct iphdr*)(skb_network_header(skb) + iphdroffset);
 		uint32_t bw_ip_index;
 		char* bw_ip = NULL;
 		char bw_ips[2][INET_ADDRSTRLEN];
@@ -1410,7 +1411,7 @@ static bool bandwidth_mt4(struct nft_bandwidth_info *priv, const struct sk_buff 
 	return match_found;
 }
 
-static bool bandwidth_mt6(struct nft_bandwidth_info *priv, const struct sk_buff *skb)
+static bool bandwidth_mt6(struct nft_bandwidth_info *priv, const struct sk_buff *skb, uint16_t ipv6hdroffset)
 {
 	ktime_t now;
 	int match_found;
@@ -1525,7 +1526,7 @@ static bool bandwidth_mt6(struct nft_bandwidth_info *priv, const struct sk_buff 
 	}
 	else
 	{
-		struct ipv6hdr* iph = (struct ipv6hdr*)(skb_network_header(skb));
+		struct ipv6hdr* iph = (struct ipv6hdr*)(skb_network_header(skb) + ipv6hdroffset);
 		uint32_t bw_ip_index;
 		char* bw_ip = NULL;
 		char bw_ips[2][INET6_ADDRSTRLEN];
@@ -2581,16 +2582,32 @@ static int nft_bandwidth_set_ctl(struct sock *sk, int cmd, sockptr_t arg, u_int3
 
 static void nft_bandwidth_eval(const struct nft_expr *expr, struct nft_regs *regs, const struct nft_pktinfo *pkt) {
 	struct nft_bandwidth_info *priv = nft_expr_priv(expr);
-	struct ethhdr *eth = eth_hdr(pkt->skb);
 	struct sk_buff *skb = pkt->skb;
+	__be16 inner_proto = skb->protocol;
+	uint16_t offset = 0;
+	struct vlan_ethhdr *veth;
+	struct pppoe_hdr *phdr;
 	
-	switch (eth->h_proto) {
+	switch (skb->protocol) {
+	case htons(ETH_P_8021Q):
+		veth = (struct vlan_ethhdr *)skb_mac_header(skb);
+		inner_proto = veth->h_vlan_encapsulated_proto;
+		offset += VLAN_HLEN;
+		break;
+	case htons(ETH_P_PPP_SES):
+		phdr = (struct pppoe_hdr *)skb_network_header(skb);
+		inner_proto = *((__be16 *)(phdr + 1));
+		offset += PPPOE_SES_HLEN;
+		break;
+	}
+
+	switch (inner_proto) {
 	case htons(ETH_P_IP):
-		if(!bandwidth_mt4(priv, skb))
+		if(!bandwidth_mt4(priv, skb, offset))
 			regs->verdict.code = NFT_BREAK;
 		break;
 	case htons(ETH_P_IPV6):
-		if(!bandwidth_mt6(priv, skb))
+		if(!bandwidth_mt6(priv, skb, offset))
 			regs->verdict.code = NFT_BREAK;
 		break;
 	default:

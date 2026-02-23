@@ -36,6 +36,7 @@
 #include <linux/inet.h>
 
 #include <linux/ip.h>
+#include <linux/if_vlan.h>
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
 
@@ -889,7 +890,7 @@ static void nft_webmon_clear_mapsqueues(unsigned char type, uint32_t max_queue_l
    }
 }
 
-static bool webmon_mt4(struct nft_webmon_info *priv, const struct sk_buff *skb)
+static bool webmon_mt4(struct nft_webmon_info *priv, const struct sk_buff *skb, uint16_t iphdroffset)
 {
 	struct iphdr* iph;
 	ipany src_ip;
@@ -902,7 +903,7 @@ static bool webmon_mt4(struct nft_webmon_info *priv, const struct sk_buff *skb)
 	}
 
 	/* ignore packets that are not TCP */
-	iph = (struct iphdr*)(skb_network_header(linear_skb));
+	iph = (struct iphdr*)(skb_network_header(linear_skb) + iphdroffset);
 	if(iph->protocol == IPPROTO_TCP)
 	{
 		/* get payload */
@@ -1252,10 +1253,10 @@ static bool webmon_mt4(struct nft_webmon_info *priv, const struct sk_buff *skb)
 	return 0;
 }
 
-static bool webmon_mt6(struct nft_webmon_info *priv, const struct sk_buff *skb)
+static bool webmon_mt6(struct nft_webmon_info *priv, const struct sk_buff *skb, uint16_t ipv6hdroffset)
 {
 	int ip6proto;
-	int thoff = 0;
+	int thoff = ipv6hdroffset;
 	
 	struct ipv6hdr* iph;
 	ipany src_ip;
@@ -1268,7 +1269,7 @@ static bool webmon_mt6(struct nft_webmon_info *priv, const struct sk_buff *skb)
 	}
 
 	/* ignore packets that are not TCP */
-	iph = (struct ipv6hdr*)(skb_network_header(linear_skb));
+	iph = (struct ipv6hdr*)(skb_network_header(linear_skb) + ipv6hdroffset);
 	ip6proto = ipv6_find_hdr(linear_skb, &thoff, -1, NULL, NULL);
 	if(ip6proto == IPPROTO_TCP)
 	{
@@ -1900,15 +1901,31 @@ void parse_ips_and_ranges(char* addr_str, struct nft_webmon_info *priv)
 
 static void nft_webmon_eval(const struct nft_expr *expr, struct nft_regs *regs, const struct nft_pktinfo *pkt) {
 	struct nft_webmon_info *priv = nft_expr_priv(expr);
-	struct ethhdr *eth = eth_hdr(pkt->skb);
 	struct sk_buff *skb = pkt->skb;
+	__be16 inner_proto = skb->protocol;
+	uint16_t offset = 0;
+	struct vlan_ethhdr *veth;
+	struct pppoe_hdr *phdr;
+	
+	switch (skb->protocol) {
+	case htons(ETH_P_8021Q):
+		veth = (struct vlan_ethhdr *)skb_mac_header(skb);
+		inner_proto = veth->h_vlan_encapsulated_proto;
+		offset += VLAN_HLEN;
+		break;
+	case htons(ETH_P_PPP_SES):
+		phdr = (struct pppoe_hdr *)skb_network_header(skb);
+		inner_proto = *((__be16 *)(phdr + 1));
+		offset += PPPOE_SES_HLEN;
+		break;
+	}
 
-	switch (eth->h_proto) {
+	switch (inner_proto) {
 	case htons(ETH_P_IP):
-		webmon_mt4(priv, skb);
+		webmon_mt4(priv, skb, offset);
 		break;
 	case htons(ETH_P_IPV6):
-		webmon_mt6(priv, skb);
+		webmon_mt6(priv, skb, offset);
 		break;
 	default:
 		break;

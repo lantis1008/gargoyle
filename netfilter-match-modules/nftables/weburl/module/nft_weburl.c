@@ -40,6 +40,7 @@
 
 
 #include <linux/ip.h>
+#include <linux/if_vlan.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michael Gray");
@@ -448,7 +449,7 @@ int https_match(const struct nft_weburl_info* priv, const unsigned char* packet_
 	return test;
 }
 
-static bool weburl_mt4(struct nft_weburl_info *priv, const struct sk_buff *skb)
+static bool weburl_mt4(struct nft_weburl_info *priv, const struct sk_buff *skb, uint16_t iphdroffset)
 {
 	int test = 0;
 	struct iphdr* iph;	
@@ -461,7 +462,7 @@ static bool weburl_mt4(struct nft_weburl_info *priv, const struct sk_buff *skb)
 	}
 
 	/* ignore packets that are not TCP */
-	iph = (struct iphdr*)(skb_network_header(linear_skb));
+	iph = (struct iphdr*)(skb_network_header(linear_skb) + iphdroffset);
 	if(iph->protocol == IPPROTO_TCP)
 	{
 		/* get payload */
@@ -488,11 +489,11 @@ static bool weburl_mt4(struct nft_weburl_info *priv, const struct sk_buff *skb)
 	return test;
 }
 
-static bool weburl_mt6(struct nft_weburl_info *priv, const struct sk_buff *skb)
+static bool weburl_mt6(struct nft_weburl_info *priv, const struct sk_buff *skb, uint16_t ipv6hdroffset)
 {
 	int test = 0;
 	struct ipv6hdr* iph;
-	int thoff = 0;
+	int thoff = ipv6hdroffset;
 	int ip6proto;
 
 	/* linearize skb if necessary */
@@ -503,7 +504,7 @@ static bool weburl_mt6(struct nft_weburl_info *priv, const struct sk_buff *skb)
 	}
 
 	/* ignore packets that are not TCP */
-	iph = (struct ipv6hdr*)(skb_network_header(linear_skb));
+	iph = (struct ipv6hdr*)(skb_network_header(linear_skb) + ipv6hdroffset);
 	ip6proto = ipv6_find_hdr(linear_skb, &thoff, -1, NULL, NULL);
 	if(ip6proto == IPPROTO_TCP)
 	{
@@ -537,16 +538,32 @@ static bool weburl_mt6(struct nft_weburl_info *priv, const struct sk_buff *skb)
 
 static void nft_weburl_eval(const struct nft_expr *expr, struct nft_regs *regs, const struct nft_pktinfo *pkt) {
 	struct nft_weburl_info *priv = nft_expr_priv(expr);
-	struct ethhdr *eth = eth_hdr(pkt->skb);
 	struct sk_buff *skb = pkt->skb;
+	__be16 inner_proto = skb->protocol;
+	uint16_t offset = 0;
+	struct vlan_ethhdr *veth;
+	struct pppoe_hdr *phdr;
 	
-	switch (eth->h_proto) {
+	switch (skb->protocol) {
+	case htons(ETH_P_8021Q):
+		veth = (struct vlan_ethhdr *)skb_mac_header(skb);
+		inner_proto = veth->h_vlan_encapsulated_proto;
+		offset += VLAN_HLEN;
+		break;
+	case htons(ETH_P_PPP_SES):
+		phdr = (struct pppoe_hdr *)skb_network_header(skb);
+		inner_proto = *((__be16 *)(phdr + 1));
+		offset += PPPOE_SES_HLEN;
+		break;
+	}
+
+	switch (inner_proto) {
 	case htons(ETH_P_IP):
-		if(!weburl_mt4(priv, skb))
+		if(!weburl_mt4(priv, skb, offset))
 			regs->verdict.code = NFT_BREAK;
 		break;
 	case htons(ETH_P_IPV6):
-		if(!weburl_mt6(priv, skb))
+		if(!weburl_mt6(priv, skb, offset))
 			regs->verdict.code = NFT_BREAK;
 		break;
 	default:
