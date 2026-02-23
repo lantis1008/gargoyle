@@ -678,40 +678,48 @@ isolate_guest_networks()
 	nft delete table bridge gfw 2>/dev/null
 	#Establish bridge table
 	nft add table bridge gfw
-	nft add chain bridge gfw forward \{ type filter hook forward priority 0\; \}
-	nft add chain bridge gfw input \{ type filter hook input priority 0\; \}
-	local guest_macs=$( get_guest_macs )
-	if [ -n "$guest_macs" ] ; then
-		local lanifs=`brctl show br-lan 2>/dev/null | awk ' $NF !~ /interfaces/ { print $NF } '`
-		local lif
+	nft add chain bridge gfw forward \{ type filter hook forward priority 0 \; policy accept \; \}
+	nft add chain bridge gfw input \{ type filter hook input priority 0 \; policy accept \; \}
 
-		local lan_ip
-		network_get_ipaddr lan_ip lan
+	local guest_macs="$(get_guest_macs)"
+	[ -z "$guest_macs" ] && return
 
-		for lif in $lanifs ; do
-			for gmac in $guest_macs ; do
-				local is_guest=$(ifconfig "$lif"	2>/dev/null | grep -i "$gmac")
-				if [ -n "$is_guest" ] ; then
-					echo "$lif with mac $gmac is wireless guest"
+	local lanifs="$(brctl show br-lan 2>/dev/null | awk ' $NF !~ /interfaces/ { print $NF } ')"
+	local lan_ip
+	network_get_ipaddr lan_ip lan
 
-					#Allow access to WAN and DHCP/DNS servers on LAN, but not other LAN hosts for anyone on guest network
-					nft insert rule bridge gfw forward iifname "$lif" ip protocol udp udp dport 53 accept
-					nft insert rule bridge gfw forward iifname "$lif" ip protocol udp udp dport 67 accept
-					nft add rule bridge gfw forward iifname "$lif" oifname "br-lan" ip daddr 192.168.0.0/16 drop
-					nft add rule bridge gfw forward iifname "$lif" oifname "br-lan" ip daddr 172.16.0.0/12 drop
-					nft add rule bridge gfw forward iifname "$lif" oifname "br-lan" ip daddr 10.0.0.0/8 drop
-					nft add rule bridge gfw forward iifname "$lif" meta protocol ip6 drop
+	for lif in $lanifs; do
+		for gmac in $guest_macs; do
+			if ip link show "$lif" | grep -qi "$gmac"; then
+				echo "$lif with mac $gmac is wireless guest"
 
-					#Only allow DHCP/DNS access to router for anyone on guest network
-					nft add rule bridge gfw input iifname "$lif" ether type arp accept
-					nft add rule bridge gfw input iifname "$lif" ip protocol udp udp dport 53 accept
-					nft add rule bridge gfw input iifname "$lif" ip protocol udp udp dport 67 accept
-					nft add rule bridge gfw input iifname "$lif" ip daddr $lan_ip drop
-					nft add rule bridge gfw input iifname "$lif" meta protocol ip6 drop
-				fi
-			done
+				# Forward Chain (Bridge L2)
+				# Allow DHCP
+				nft add rule bridge gfw forward iifname "$lif" ip protocol udp udp dport {67,68} accept
+				# Allow DNS
+				nft add rule bridge gfw forward iifname "$lif" ip protocol udp udp dport 53 accept
+				nft add rule bridge gfw forward iifname "$lif" ip protocol tcp tcp dport 53 accept
+				# Drop all IPv6
+				nft add rule bridge gfw forward iifname "$lif" meta protocol ip6 drop
+				# Drop guest to any other LAN interface
+				nft add rule bridge gfw forward iifname "$lif" oifname != "$lif" drop
+
+				# Input Chain (to router)
+				# Allow ARP
+				nft add rule bridge gfw input iifname "$lif" ether type arp accept
+				# Allow DHCP/DNS
+				nft add rule bridge gfw input iifname "$lif" ip protocol udp udp dport {53,67,68} accept
+				# Drop all IPv6
+				nft add rule bridge gfw input iifname "$lif" meta protocol ip6 drop
+				# Drop everything else
+				nft add rule bridge gfw input iifname "$lif" ip daddr $lan_ip drop
+				# Drop everything else to private subnets
+				nft add rule bridge gfw input iifname "$lif" ip daddr 192.168.0.0/16 drop
+				nft add rule bridge gfw input iifname "$lif" ip daddr 172.16.0.0/12 drop
+				nft add rule bridge gfw input iifname "$lif" ip daddr 10.0.0.0/8 drop
+			fi
 		done
-	fi
+	done
 }
 
 
