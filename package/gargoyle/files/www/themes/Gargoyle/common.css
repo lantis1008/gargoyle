@@ -1305,3 +1305,7 @@ td.share_user_table_column_2
 	display: block;
 	opacity: 1;
 }
+
+/* See theme.css: counterpart override so the #content fix wins regardless of
+   stylesheet load order. */
+#content{-webkit-overflow-scrolling:auto}

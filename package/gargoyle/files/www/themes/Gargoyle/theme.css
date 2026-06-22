@@ -698,3 +698,10 @@ body
 		clear:none;
 	}
 }
+
+/* Fix: native <select> dropdowns needed two clicks to open on desktop Chromium.
+   Cause: -webkit-overflow-scrolling:touch on the #content scroll container.
+   Override to auto (no-op for desktop momentum scrolling) and make selects
+   inline-block. Affects every dropdown on every page. */
+#content{-webkit-overflow-scrolling:auto}
+select,select.form-control{display:inline-block}
