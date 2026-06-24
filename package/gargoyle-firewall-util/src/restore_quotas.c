@@ -1332,14 +1332,21 @@ char* group_name_to_set_name(char* group_name)
 	int src_len = strlen(group_name);
 	char* sanitized = (char*)malloc(src_len + 1);
 	int i;
+	int out = 0;
+	int last_was_under = 0;
 	for(i = 0; i < src_len; i++)
 	{
 		char c = group_name[i];
-		if(c >= 'A' && c <= 'Z') { sanitized[i] = c + 32; }
-		else if((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') { sanitized[i] = c; }
-		else { sanitized[i] = '_'; }
+		char out_c;
+		if(c >= 'A' && c <= 'Z') { out_c = c + 32; }
+		else if((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') { out_c = c; }
+		else { out_c = '_'; }
+		/* squeeze consecutive underscores from any source (match shell: tr -cs 'a-z0-9_' '_') */
+		if(out_c == '_' && last_was_under) { continue; }
+		sanitized[out++] = out_c;
+		last_was_under = (out_c == '_');
 	}
-	sanitized[src_len] = '\0';
+	sanitized[out] = '\0';
 	char* set_name = dynamic_strcat(2, "grp_", sanitized);
 	free(sanitized);
 	if(strlen(set_name) > 31)

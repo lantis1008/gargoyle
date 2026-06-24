@@ -651,6 +651,7 @@ function addClassificationRule()
 	}
 	else
 	{
+		syncGroupIpFields();
 
 		addRuleMatchControls = ["ip_family", "source_ip", "source_port", "dest_ip", "dest_port", "max_pktsize", "min_pktsize", "transport_protocol", "connbytes_kb", "app_protocol"];
 		displayList = [UI.IPFam+": $", qosStr.Src+": $", qosStr.SrcP+": $", qosStr.Dst+": $", qosStr.DstP+": $", qosStr.MaxPktLen+": $ "+UI.byt, qosStr.MinPktLen+": $ "+UI.byt, qosStr.TrProto+": $", qosStr.Connb+": $ "+UI.KBy, qosStr.APro+": $"];
@@ -695,6 +696,7 @@ function proofreadClassificationRule()
 	alwaysValid = function(text){return 0;};
 	validateQOSIPRangeAndFamily = function(ipstr)
 	{
+		if(ipstr.indexOf("GROUP:") === 0) { return 0; }
 		var retVal = 0;
 		var ipfam = getIPFamily(ipstr);
 		var selfam = document.getElementById("ip_family").value;
@@ -748,6 +750,16 @@ function resetRuleControls()
 		checkbox.checked =false;
 		enableAssociatedField( checkbox, ruleControlIds[ruleControlIndex], "");
 	}
+
+	["source", "dest"].forEach(function(w)
+	{
+		var typeEl = document.getElementById(w + "_ip_type");
+		typeEl.value = "ip";
+		typeEl.disabled = true;
+		document.getElementById(w + "_group_select").disabled = true;
+		document.getElementById(w + "_ip_text_container").style.display = "";
+		document.getElementById(w + "_group_container").style.display = "none";
+	});
 }
 
 function addServiceClass()
@@ -906,6 +918,7 @@ function editRuleTableRow(editRuleWindowRow)
 	}
 	else
 	{
+		syncGroupIpFields();
 		addRuleMatchControls = ["ip_family", "source_ip", "source_port", "dest_ip", "dest_port", "max_pktsize", "min_pktsize", "transport_protocol", "connbytes_kb", "app_protocol"];
 		displayList = [UI.IPFam+": $", qosStr.Src+": $", qosStr.SrcP+": $", qosStr.Dst+": $", qosStr.DstP+": $",  qosStr.MaxPktLen+": $ "+UI.byt, qosStr.MinPktLen+": $ "+UI.byt, qosStr.TrProto+": $", qosStr.Connb+": $ "+UI.KBy, qosStr.APro+": $"];
 		ruleText = ""
@@ -1240,8 +1253,54 @@ function resetFairLinkLimit()
 	runAjax("POST", "utility/run_commands.sh", param, stateChangeFunction);
 }
 
+function populateQosGroupSelects()
+{
+	["source_group_select", "dest_group_select"].forEach(function(selId)
+	{
+		var sel = document.getElementById(selId);
+		if(!sel) { return; }
+		while(sel.firstChild) { sel.removeChild(sel.firstChild); }
+		var gi;
+		for(gi = 0; gi < knownDeviceGroups.length; gi++)
+		{
+			var opt = document.createElement("option");
+			opt.value = knownDeviceGroups[gi];
+			opt.textContent = knownDeviceGroups[gi];
+			sel.appendChild(opt);
+		}
+	});
+}
+
+function syncGroupIpFields()
+{
+	["source", "dest"].forEach(function(w)
+	{
+		var typeEl = document.getElementById(w + "_ip_type");
+		if(!typeEl.disabled && typeEl.value == "group")
+		{
+			var sel = document.getElementById(w + "_group_select");
+			document.getElementById(w + "_ip").value = sel.options.length > 0 ? "GROUP:" + sel.value : "";
+		}
+	});
+}
+
+function updateRuleIpMode(which)
+{
+	var checkEl = document.getElementById("use_" + which + "_ip");
+	var enabled = checkEl.checked && !checkEl.disabled;
+	var typeEl = document.getElementById(which + "_ip_type");
+	typeEl.disabled = !enabled;
+	var mode = typeEl.value;
+	var ipField = document.getElementById(which + "_ip");
+	ipField.disabled = !(enabled && mode == "ip");
+	document.getElementById(which + "_group_select").disabled = !(enabled && mode == "group");
+	document.getElementById(which + "_ip_text_container").style.display = (enabled && mode == "ip") ? "" : "none";
+	document.getElementById(which + "_group_container").style.display = (enabled && mode == "group") ? "" : "none";
+}
+
 function addRuleModal()
 {
+	populateQosGroupSelects();
 	modalButtons = [
 		{"title" : UI.Add, "classes" : "btn btn-primary", "function" : addClassificationRule},
 		"defaultDismiss"
@@ -1256,6 +1315,7 @@ function addRuleModal()
 
 function editRuleModal(triggerEl)
 {
+	populateQosGroupSelects();
 	editRow=triggerEl.parentNode.parentNode;
 	modalButtons = [
 		{"title" : UI.CApplyChanges, "classes" : "btn btn-primary", "function" : function(){editRuleTableRow(editRow);}},
@@ -1312,6 +1372,23 @@ function editRuleModal(triggerEl)
 			enableAssociatedField(ruleControlCheckbox, ruleControlId, "", document);
 		}
 	}
+
+	// Restore group mode for source/dest if criteria contains GROUP: prefix
+	["source", "dest"].forEach(function(w)
+	{
+		var ipField = document.getElementById(w + "_ip");
+		if(ipField.value.indexOf("GROUP:") === 0)
+		{
+			var groupName = ipField.value.substring(6);
+			ipField.value = "";
+			ipField.disabled = true;
+			var typeEl = document.getElementById(w + "_ip_type");
+			typeEl.value = "group";
+			setSelectedValue(w + "_group_select", groupName, document);
+			updateRuleIpMode(w);
+		}
+	});
+
 	setSelectedText("classification", editRow.childNodes[1].firstChild.data, document);
 	updateIPControls(document.getElementById("ip_family"));
 
@@ -1418,6 +1495,8 @@ function updateIPControls(triggerEl)
 		}
 		enableAssociatedField(checkEl,elArr[x], '');
 	}
+	updateRuleIpMode('source');
+	updateRuleIpMode('dest');
 }
 
 function proofreadQOSIPRange(triggerEl)
