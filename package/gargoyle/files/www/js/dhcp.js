@@ -7,7 +7,7 @@
  */
 
 var dhcpS=new Object(); //part of i18n
-var TSort_Data = new Array ('static_ip_table', 's', 's', 'p', 's', 's', '', '');
+var TSort_Data = new Array ('devices_table', 's', 's', 'p', 's', 's', 's', '');
 
 function saveChanges()
 {
@@ -62,35 +62,44 @@ function saveChanges()
 			dhcpWillBeEnabled = false;
 		}
 
-		staticIpTable = document.getElementById('staticip_table_container').firstChild;
-		tableData = getTableDataArray(staticIpTable, true, false);
-		for(hostIdx = 0; hostIdx < tableData.length; hostIdx++)
+		// Unified Devices table: one "config host" section per device.
+		// A device may carry any of: fixed IP, IPv6 suffix/DUID, group.
+		// MAC is required. Exactly one section per device => no duplicate
+		// dhcp-host lines => dnsmasq cannot be crashed by this page.
+		var devTable = document.getElementById('devices_table_container').firstChild;
+		var devData = getTableDataArray(devTable, true, false);
+		for(var devIdx = 0; devIdx < devData.length; devIdx++)
 		{
-			if(tableData[hostIdx][1] == "" || tableData[hostIdx][1] == "-") { continue; }
-			cfgid = "static_host_" + (hostIdx+1);
-			uci.set("dhcp",cfgid,"","host");
-			hostname = tableData[hostIdx][0];
-			if(hostname != "" && hostname != "-")
+			var row = devData[devIdx];
+			var rMac = row[1];
+			if(rMac == "" || rMac == "-") { continue; }   // MAC required
+			var cfgid = "device_" + (devIdx + 1);
+			uci.set("dhcp", cfgid, "", "host");
+
+			var rName = row[0];
+			if(rName != "" && rName != "-") { uci.set("dhcp", cfgid, "name", rName); }
+
+			uci.set("dhcp", cfgid, "mac", rMac);
+
+			var rIp = row[2];
+			if(rIp != "" && rIp != "-") { uci.set("dhcp", cfgid, "ip", rIp); }
+
+			var rHostid = row[3];
+			if(rHostid != "" && rHostid != "-")
 			{
-				uci.set("dhcp",cfgid,"name",hostname);
-			}
-			uci.set("dhcp",cfgid,"mac",tableData[hostIdx][1]);
-			uci.set("dhcp",cfgid,"ip",tableData[hostIdx][2]);
-			hostid = tableData[hostIdx][3];
-			if(hostid != "-")
-			{
-				var splitHostId = hostid.split(':');
+				var splitHostId = rHostid.split(':');
 				if(splitHostId.length == 4)
 				{
 					splitHostId[3] = ('0000' + splitHostId[3]).slice(-4);
 				}
-				uci.set("dhcp",cfgid,"hostid",splitHostId.join(''));
+				uci.set("dhcp", cfgid, "hostid", splitHostId.join(''));
 			}
-			duid = tableData[hostIdx][4];
-			if(duid != "-")
-			{
-				uci.set("dhcp",cfgid,"duid",duid);
-			}
+
+			var rDuid = row[4];
+			if(rDuid != "" && rDuid != "-") { uci.set("dhcp", cfgid, "duid", rDuid); }
+
+			var rGroup = row[5];
+			if(rGroup != "" && rGroup != "-") { uci.set("dhcp", cfgid, "group", rGroup); }
 
 			staticHostCommands.push("uci set dhcp." + cfgid + "=host");
 		}
@@ -124,10 +133,10 @@ function saveChanges()
 				firewallCommands.push("uci del firewall.@defaults[0].enforce_dhcp_assignments");
 			}
 			firewallCommands.push("uci commit");
-		}		
+		}
 
 		//need to restart firewall here because for add/remove of static ips, we need to restart bandwidth monitor, as well as for firewall commands above if we have any
-		var restartDhcpCommand = "\n/etc/init.d/dnsmasq restart ; \n/etc/init.d/odhcpd restart ; \nsh /usr/lib/gargoyle/restart_firewall.sh\n" ;
+		var restartDhcpCommand = "\n/etc/init.d/dnsmasq restart ; \n/etc/init.d/odhcpd restart ; \nsh /usr/lib/gargoyle/restart_firewall.sh ; \n/usr/lib/gargoyle/manage_groups.sh\n" ;
 
 		commands = staticHostCommands.join("\n") + "\n" + uci.getScriptCommands(uciOriginal) + "\n" + createEtherCommands.join("\n") + "\n" + createHostCommands.join("\n") + "\n" + firewallCommands.join("\n") + "\n" + restartDhcpCommand ;
 
@@ -154,44 +163,57 @@ function createEditButton()
 	var editButton = createInput("button");
 	editButton.textContent = UI.Edit;
 	editButton.className = "btn btn-default btn-edit";
-	editButton.onclick = editStaticModal;
+	editButton.onclick = editDeviceModal;
 	return editButton;
 }
 
 function resetData()
 {
 	dhcpEnabled = uciOriginal.get("dhcp", "lan", "ignore") == "1" ? false : true;
-	var staticIpTableData = [];
+
+	// Build the single unified Devices table from every "config host" section,
+	// regardless of section name (migrates old static_host_*/known_device_*).
+	var devTableData = [];
 	hostSections = uciOriginal.getAllSectionsOfType("dhcp","host");
 	var secIndex=0;
 	for(secIndex=0; secIndex < hostSections.length ; secIndex++)
 	{
-		//Host, MAC, IPv4, IPv6, DUID, Edit btn
-		var rowData;
-		hostSection = hostSections[secIndex];
-		host = uciOriginal.get("dhcp",hostSection,"name");
-		mac = uciOriginal.get("dhcp",hostSection,"mac");
+		var hostSection = hostSections[secIndex];
+		var host = uciOriginal.get("dhcp",hostSection,"name");
+		var mac = uciOriginal.get("dhcp",hostSection,"mac");
 		if(mac == "") { continue; }
-		ipv4 = uciOriginal.get("dhcp",hostSection,"ip");
-		hostid = uciOriginal.get("dhcp",hostSection,"hostid");
-		ipv6 = hostid == "" ? "" : ("00000000" + hostid).slice(-8).replace(/([0-9a-f]{4})([0-9a-f]{4})/i,"::$1:$2");
-		ipv6 = validateIP6(ipv6) == 0 ? ip6_canonical(ipv6) : "-";
-		duid = uciOriginal.get("dhcp",hostSection,"duid");
+		var ipv4 = uciOriginal.get("dhcp",hostSection,"ip");
+		var hostid = uciOriginal.get("dhcp",hostSection,"hostid");
+		var ipv6 = "-";
+		if(hostid != "")
+		{
+			var disp = ("00000000" + hostid).slice(-8).replace(/([0-9a-f]{4})([0-9a-f]{4})/i,"::$1:$2");
+			ipv6 = validateIP6(disp) == 0 ? ip6_canonical(disp) : "-";
+		}
+		var duid = uciOriginal.get("dhcp",hostSection,"duid");
 		duid = duid == "" ? "-" : duid;
+		var group = uciOriginal.get("dhcp",hostSection,"group");
+		group = group == "" ? "-" : group;
 
-		rowData = [host, mac, ipv4, ipv6, duid, createEditButton()];
-
-		staticIpTableData.push(rowData);
+		//Name, MAC, IPv4, IPv6 suffix, DUID, Group, Edit btn
+		devTableData.push([
+			host  == "" ? "-" : host,
+			mac,
+			ipv4  == "" ? "-" : ipv4,
+			ipv6,
+			duid,
+			group,
+			createEditButton()
+		]);
 	}
-	columnNames=[UI.HsNm, 'MAC', 'IPv4', dhcpS.Suff, 'DUID', ''];
-	staticIpTable=createTable(columnNames, staticIpTableData, "static_ip_table", true, false, removeStaticIp );
-	tableContainer = document.getElementById('staticip_table_container');
+	columnNames=[UI.HsNm, 'MAC', 'IPv4', dhcpS.Suff, 'DUID', dhcpS.GrpNm, ''];
+	var devTable=createTable(columnNames, devTableData, "devices_table", true, false, removeDeviceCallback );
+	var tableContainer = document.getElementById('devices_table_container');
 	if(tableContainer.firstChild != null)
 	{
 		tableContainer.removeChild(tableContainer.firstChild);
 	}
-	tableContainer.appendChild(staticIpTable);
-
+	tableContainer.appendChild(devTable);
 
 	dhcpIds =  ['dhcp_start', 'dhcp_end', 'dhcp_lease'];
 	dhcpPkgs = ['dhcp',['dhcp','dhcp'],'dhcp'];
@@ -249,28 +271,26 @@ function resetData()
 	}
 	setChildText("ip6prefix", ip6txt);
 
-	//setup hostname/mac list
-	resetHostnameMacList();
+	//setup connected-hosts dropdown
+	resetDeviceMacList();
 }
 
-function removeStaticIp(table, row)
+function removeDeviceCallback(table, row)
 {
-	var removedIp = row.childNodes[2].firstChild.data
-	//delete ipHostHash[removedIp]
-	resetHostnameMacList()
-
+	resetDeviceMacList();
 }
 
-function resetHostnameMacList()
+// Populate the "select from currently connected hosts" dropdown, excluding
+// MACs that already have a device row.
+function resetDeviceMacList()
 {
-	var staticTable = document.getElementById("staticip_table_container").firstChild;
-	var staticTableData = staticTable == null ? [] : getTableDataArray(staticTable, true, false);
-	var staticMacs = [];
-	var staticIndex=0;
-	for(staticIndex=0; staticIndex < staticTableData.length; staticIndex++)
+	var devTable = document.getElementById("devices_table_container").firstChild;
+	var devTableData = devTable == null ? [] : getTableDataArray(devTable, true, false);
+	var usedMacs = [];
+	var di;
+	for(di = 0; di < devTableData.length; di++)
 	{
-		var mac = (staticTableData[staticIndex][1]).toUpperCase();
-		staticMacs[ mac ] = 1;
+		usedMacs[ (devTableData[di][1]).toUpperCase() ] = 1;
 	}
 
 	var hmVals = [ "none" ];
@@ -280,50 +300,22 @@ function resetHostnameMacList()
 	{
 		var lease = leaseData[leaseIndex];
 		var mac = (lease[0]).toUpperCase();
-		var host = lease[2];
-		var duid = null;
-		for(ipIndex in ipHostHash)
+		if( usedMacs[ mac ] == null )
 		{
-			if(ipHostHash[ipIndex] == host)
-			{
-				duid = ipDUIDHash[ipIndex];
-				if(duid != null)
-				{
-					break;
-				}
-			}
-		}
-		if(duid == null)
-		{
-			for(ipIndex in ipMacHash)
-			{
-				if(ipMacHash[ipIndex] !== undefined && mac == ipMacHash[ipIndex].toUpperCase())
-				{
-					duid = ipDUIDHash[ipIndex];
-					if(duid != null)
-					{
-						break;
-					}
-				}
-			}
-		}
-
-		if( staticMacs[ mac ] == null )
-		{
-			hmVals.push( lease[2] + "," + mac + "," + (duid == null ? "-" : duid));
+			// value = hostname,mac,currentIp  (currentIp pre-fills the Fixed IP field)
+			hmVals.push( lease[2] + "," + mac + "," + lease[1] );
 			hmText.push( (lease[2] == "" || lease[2] == "*" ? lease[1] : lease[2] ) + " (" + mac + ")" );
 		}
 	}
-	setAllowableSelections("static_from_connected", hmVals, hmText);
+	setAllowableSelections("dev_from_connected", hmVals, hmText);
 
 	var hmEnabled = hmText.length > 1 && document.getElementById('dhcp_enabled').checked ? true : false;
-	setElementEnabled(document.getElementById("static_from_connected"), hmEnabled, "none");
-
+	setElementEnabled(document.getElementById("dev_from_connected"), hmEnabled, "none");
 }
 
 function setEnabled(enabled)
 {
-	var ids=['dhcp_start', 'dhcp_end', 'dhcp_lease', 'block_mismatches', 'add_host', 'add_mac', 'add_ip', 'add_hostid', 'add_duid', 'dhcpv6', 'ra', 'add_button'];
+	var ids=['dhcp_start', 'dhcp_end', 'dhcp_lease', 'block_mismatches', 'dhcpv6', 'ra', 'add_device_button'];
 	var idIndex;
 	for (idIndex in ids)
 	{
@@ -331,38 +323,10 @@ function setEnabled(enabled)
 		setElementEnabled(element, enabled, "");
 	}
 
-	var staticIpTable = document.getElementById('staticip_table_container').firstChild;
-	setRowClasses(staticIpTable, enabled);
+	var devTable = document.getElementById('devices_table_container').firstChild;
+	setRowClasses(devTable, enabled);
 
-	resetHostnameMacList();
-
-
-}
-
-function addStatic()
-{
-	errors = proofreadStatic();
-	if(errors.length > 0)
-	{
-		alert(errors.join("\n") + "\n\n" + dhcpS.AErr);
-	}
-	else
-	{
-		values = new Array();
-		ids = ['add_host', 'add_mac', 'add_ip', 'add_hostid', 'add_duid'];
-		for (idIndex in ids)
-		{
-			v = document.getElementById(ids[idIndex]).value;
-			v = v== '' ? '-' : v;
-			values.push(v);
-			document.getElementById(ids[idIndex]).value = "";
-		}
-		values.push(createEditButton());
-		staticIpTable = document.getElementById('staticip_table_container').firstChild;
-		addTableRow(staticIpTable,values, true, false, resetHostnameMacList);
-		resetHostnameMacList();
-		closeModalWindow('static_ip_modal');
-	}
+	resetDeviceMacList();
 }
 
 function validateDHCPHostName(hostname)
@@ -383,103 +347,6 @@ function validateDHCPHostName(hostname)
 function proofreadDHCPHostName(input)
 {
 	proofreadText(input, validateDHCPHostName, 0);
-}
-
-function proofreadStatic(excludeRow)
-{
-	var proofreadIP6Suffix = function()
-	{
-		if(arguments[0].length == 0 || arguments[0] == "-")
-		{
-			//We want ipv6 optional for now
-			return 0;
-		}
-		if(!arguments[0].match(/^::([0-9a-f]{0,4}:)?[0-9a-f]{0,4}/))
-		{
-			return 1;
-		}
-		return 0;
-	};
-	var proofreadDUID = function()
-	{
-		if(arguments[0] == "-")
-		{
-			//We want ipv6 optional for now
-			return 0;
-		}
-		if(!arguments[0].match(/^[0-9a-f]{0,130}$/i))
-		{
-			return 1;
-		}
-		return 0;
-	};
-
-	addIds=['add_host', 'add_mac', 'add_ip', 'add_hostid', 'add_duid'];
-	labelIds= ['add_host_label', 'add_mac_label', 'add_ip_label', 'add_hostid_label', 'add_duid_label'];
-	functions = [validateDHCPHostName, validateMac, validateIP, proofreadIP6Suffix, proofreadDUID];
-	returnCodes = [0,0,0,0,0];
-	visibilityIds=addIds;
-	errors = proofreadFields(addIds, labelIds, functions, returnCodes, visibilityIds, document);
-	if(errors.length == 0)
-	{
-		var staticIpTable = document.getElementById('staticip_table_container').firstChild;
-		var currentData = getTableDataArray(staticIpTable, true, false);
-		var rowDataIndex = 0;
-		for (rowDataIndex=0; rowDataIndex < currentData.length ; rowDataIndex++)
-		{
-			if(staticIpTable.rows[rowDataIndex+1] != excludeRow)
-			{
-				rowData = currentData[rowDataIndex];
-				if(rowData[0] != '' && rowData[0] != '-' && rowData[0] == document.getElementById('add_host').value)
-				{
-					errors.push(dhcpS.dHErr);
-				}
-				if(rowData[1] == document.getElementById('add_mac').value)
-				{
-					errors.push(dhcpS.dMErr);
-				}
-				if(rowData[2] == document.getElementById('add_ip').value)
-				{
-					errors.push(dhcpS.dIPErr);
-				}
-				if(rowData[3] != '-' && rowData[3] == document.getElementById('add_hostid').value)
-				{
-					errors.push(dhcpS.dHIDErr);
-				}
-				if(rowData[4] != '-' && rowData[4] == document.getElementById('add_duid').value)
-				{
-					errors.push(dhcpS.dDUIDErr);
-				}
-			}
-		}
-	}
-	if(errors.length == 0)
-	{
-		var hostid = document.getElementById("add_hostid").value;
-		var duid = document.getElementById('add_duid').value;
-		if((hostid != "" && hostid != "-") && (duid == "" || duid == "-"))
-		{
-			errors.push(dhcpS.NoDUID);
-		}
-	}
-	if(errors.length == 0)
-	{
-		var dhcpSection = getDhcpSection(uciOriginal);
-		var mask = uciOriginal.get("network", "lan", "netmask");
-		var ip = uciOriginal.get("network", "lan", "ipaddr");
-		var testIp = document.getElementById('add_ip').value;
-		var testEnd = parseInt( (testIp.split("."))[3] );
-
-		if(!rangeInSubnet(mask, ip, testEnd, testEnd))
-		{
-			errors.push(dhcpS.subErr);
-		}
-		if(ip == testIp)
-		{
-			errors.push(dhcpS.ipErr);
-		}
-	}
-	return errors;
 }
 
 function proofreadAll()
@@ -514,82 +381,286 @@ function proofreadAll()
 	return errors;
 }
 
-function editStatic(editRow)
+// ---- Unified Devices ----
+
+function setDeviceAdvancedVisible(visible)
 {
-	var errors = proofreadStatic(editRow);
+	var c = document.getElementById("dev_advanced_container");
+	var t = document.getElementById("dev_advanced_toggle");
+	if(c) { c.style.display = visible ? "" : "none"; }
+	if(t) { t.textContent = visible ? (dhcpS.HideAdv || "Hide advanced (IPv6 reservation)") : (dhcpS.ShowAdv || "Show advanced (IPv6 reservation)"); }
+}
+
+function toggleDeviceAdvanced()
+{
+	var c = document.getElementById("dev_advanced_container");
+	if(!c) { return; }
+	setDeviceAdvancedVisible(c.style.display == "none");
+}
+
+function populateGroupDatalist()
+{
+	var datalist = document.getElementById("dev_group_list");
+	if(!datalist) { return; }
+	while(datalist.firstChild) { datalist.removeChild(datalist.firstChild); }
+
+	var seen = {};
+	var gi;
+	for(gi = 0; gi < knownDeviceGroups.length; gi++)
+	{
+		seen[knownDeviceGroups[gi]] = 1;
+	}
+	var devTable = document.getElementById("devices_table_container").firstChild;
+	if(devTable)
+	{
+		var devData = getTableDataArray(devTable, true, false);
+		var ri;
+		for(ri = 0; ri < devData.length; ri++)
+		{
+			var grp = devData[ri][5];
+			if(grp && grp != "-") { seen[grp] = 1; }
+		}
+	}
+	var grpName;
+	for(grpName in seen)
+	{
+		var opt = document.createElement("option");
+		opt.value = grpName;
+		datalist.appendChild(opt);
+	}
+}
+
+function proofreadDevice(excludeRow)
+{
+	var validateOptionalIp = function(val)
+	{
+		if(val == "" || val == "-") { return 0; }
+		return validateIP(val);
+	};
+	var proofreadIP6Suffix = function(val)
+	{
+		if(val.length == 0 || val == "-") { return 0; }   // optional
+		if(!val.match(/^::([0-9a-f]{0,4}:)?[0-9a-f]{0,4}/)) { return 1; }
+		return 0;
+	};
+	var proofreadDUID = function(val)
+	{
+		if(val == "" || val == "-") { return 0; }          // optional
+		if(!val.match(/^[0-9a-f]{0,130}$/i)) { return 1; }
+		return 0;
+	};
+
+	var addIds    = ['dev_name', 'dev_mac', 'dev_ip', 'dev_hostid', 'dev_duid'];
+	var labelIds  = ['dev_name_label', 'dev_mac_label', 'dev_ip_label', 'dev_hostid_label', 'dev_duid_label'];
+	var functions = [validateDHCPHostName, validateMac, validateOptionalIp, proofreadIP6Suffix, proofreadDUID];
+	var returnCodes = [0,0,0,0,0];
+	var errors = proofreadFields(addIds, labelIds, functions, returnCodes, addIds, document);
+
+	// Group is optional, but if set it must be a safe name: letters, digits,
+	// hyphen, underscore only. Spaces / special chars break the GROUP:<name>
+	// references used by firewall/quota/restriction rules and the nftables set.
+	var devGroupEl = document.getElementById("dev_group");
+	var validateGroupName = function(val)
+	{
+		if(val == "" || val == "-") { return 0; }            // optional
+		return val.match(/^[a-zA-Z0-9_-]+$/) == null ? 1 : 0;
+	};
+	if(devGroupEl)
+	{
+		proofreadText(devGroupEl, validateGroupName, 0);
+		if(validateGroupName(devGroupEl.value) != 0)
+		{
+			errors.push(dhcpS.grpErr);
+		}
+	}
+
+	var nameVal = document.getElementById('dev_name').value;
+	var macVal  = document.getElementById('dev_mac').value;
+	var ipVal   = document.getElementById('dev_ip').value;
+	var hidVal  = document.getElementById('dev_hostid').value;
+	var duidVal = document.getElementById('dev_duid').value;
+
+	if(errors.length == 0)
+	{
+		var devTable = document.getElementById('devices_table_container').firstChild;
+		var currentData = getTableDataArray(devTable, true, false);
+		var rowDataIndex = 0;
+		for (rowDataIndex=0; rowDataIndex < currentData.length ; rowDataIndex++)
+		{
+			if(devTable.rows[rowDataIndex+1] == excludeRow) { continue; }
+			var rowData = currentData[rowDataIndex];
+			if(nameVal != '' && nameVal != '-' && rowData[0] == nameVal)
+			{
+				errors.push(dhcpS.dHErr);
+			}
+			if(rowData[1].toUpperCase() == macVal.toUpperCase())
+			{
+				errors.push(dhcpS.dMErr);
+			}
+			if(ipVal != '' && ipVal != '-' && rowData[2] == ipVal)
+			{
+				errors.push(dhcpS.dIPErr);
+			}
+			if(hidVal != '' && hidVal != '-' && rowData[3] != '-' && rowData[3] == hidVal)
+			{
+				errors.push(dhcpS.dHIDErr);
+			}
+			if(duidVal != '' && duidVal != '-' && rowData[4] != '-' && rowData[4] == duidVal)
+			{
+				errors.push(dhcpS.dDUIDErr);
+			}
+		}
+	}
+
+	// IPv6 suffix requires a DUID
+	if(errors.length == 0)
+	{
+		if((hidVal != "" && hidVal != "-") && (duidVal == "" || duidVal == "-"))
+		{
+			errors.push(dhcpS.NoDUID);
+		}
+	}
+
+	// Fixed IP, when set, must be inside the LAN subnet and not the router IP
+	if(errors.length == 0 && ipVal != "" && ipVal != "-")
+	{
+		var mask = uciOriginal.get("network", "lan", "netmask");
+		var ip = uciOriginal.get("network", "lan", "ipaddr");
+		var testEnd = parseInt( (ipVal.split("."))[3] );
+		if(!rangeInSubnet(mask, ip, testEnd, testEnd))
+		{
+			errors.push(dhcpS.subErr);
+		}
+		if(ip == ipVal)
+		{
+			errors.push(dhcpS.ipErr);
+		}
+	}
+
+	return errors;
+}
+
+function addDevice()
+{
+	var errors = proofreadDevice(null);
 	if(errors.length > 0)
 	{
-		alert(errors.join("\n") + "\n"+dhcpS.upErr);
+		alert(errors.join("\n") + "\n\n" + dhcpS.AErr);
 	}
 	else
 	{
-		var add_host = document.getElementById("add_host").value;
-		var add_hostid = document.getElementById("add_hostid").value;
-		var add_duid = document.getElementById("add_duid").value;
-		//update document with new data
-		editRow.childNodes[0].firstChild.data = add_host == "" ? "-" : add_host;
-		editRow.childNodes[1].firstChild.data = document.getElementById("add_mac").value;
-		editRow.childNodes[2].firstChild.data = document.getElementById("add_ip").value;
-		editRow.childNodes[3].firstChild.data = add_hostid == "" ? "-" : add_hostid;
-		editRow.childNodes[4].firstChild.data = add_duid == "" ? "-" : add_duid;
+		var dName  = document.getElementById('dev_name').value;
+		var dMac   = document.getElementById('dev_mac').value;
+		var dIp    = document.getElementById('dev_ip').value;
+		var dHid   = document.getElementById('dev_hostid').value;
+		var dDuid  = document.getElementById('dev_duid').value;
+		var dGroup = document.getElementById('dev_group').value;
 
-		closeModalWindow('static_ip_modal');
-
-		resetHostnameMacList();
+		var values = [
+			dName  == "" ? "-" : dName,
+			dMac,
+			dIp    == "" ? "-" : dIp,
+			dHid   == "" ? "-" : dHid,
+			dDuid  == "" ? "-" : dDuid,
+			dGroup == "" ? "-" : dGroup,
+			createEditButton()
+		];
+		var devTable = document.getElementById('devices_table_container').firstChild;
+		addTableRow(devTable, values, true, false, removeDeviceCallback);
+		resetDeviceMacList();
+		closeModalWindow('device_modal');
 	}
 }
 
-function addStaticModal()
+function editDevice(editRow)
 {
-	modalButtons = [
-		{"title" : UI.Add, "classes" : "btn btn-primary", "function" : addStatic},
+	var errors = proofreadDevice(editRow);
+	if(errors.length > 0)
+	{
+		alert(errors.join("\n") + "\n" + dhcpS.upErr);
+	}
+	else
+	{
+		var dName  = document.getElementById('dev_name').value;
+		var dMac   = document.getElementById('dev_mac').value;
+		var dIp    = document.getElementById('dev_ip').value;
+		var dHid   = document.getElementById('dev_hostid').value;
+		var dDuid  = document.getElementById('dev_duid').value;
+		var dGroup = document.getElementById('dev_group').value;
+
+		editRow.childNodes[0].firstChild.data = dName  == "" ? "-" : dName;
+		editRow.childNodes[1].firstChild.data = dMac;
+		editRow.childNodes[2].firstChild.data = dIp    == "" ? "-" : dIp;
+		editRow.childNodes[3].firstChild.data = dHid   == "" ? "-" : dHid;
+		editRow.childNodes[4].firstChild.data = dDuid  == "" ? "-" : dDuid;
+		editRow.childNodes[5].firstChild.data = dGroup == "" ? "-" : dGroup;
+
+		closeModalWindow('device_modal');
+		resetDeviceMacList();
+	}
+}
+
+function addDeviceModal()
+{
+	populateGroupDatalist();
+	var modalButtons = [
+		{"title" : UI.Add, "classes" : "btn btn-primary", "function" : addDevice},
 		"defaultDismiss"
 	];
 
-	var host = "";
-	var mac = "";
-	var duid = "";
-	var selectedVal = getSelectedValue("static_from_connected");
+	var name = "";
+	var mac  = "";
+	var ip   = "";
+	var selectedVal = getSelectedValue("dev_from_connected");
 	if(selectedVal != "none")
 	{
-		host	= (selectedVal.split(/,/))[0];
-		mac	= (selectedVal.split(/,/))[1];
-		duid	= (selectedVal.split(/,/))[2];
-		setSelectedValue("static_from_connected", "none");
+		var parts = selectedVal.split(/,/);
+		name = parts[0];
+		mac  = parts[1];
+		ip   = (parts[2] == null || parts[2] == "*") ? "" : parts[2];
+		setSelectedValue("dev_from_connected", "none");
 	}
 
-	modalElements = [
-		{"id" : "add_host", "value" : host},
-		{"id" : "add_mac", "value" : mac},
-		{"id" : "add_ip", "value" : ""},
-		{"id" : "add_hostid", "value" : ""},
-		{"id" : "add_duid", "value" : duid}
+	var modalElements = [
+		{"id" : "dev_name",   "value" : name == "*" ? "" : name},
+		{"id" : "dev_mac",    "value" : mac},
+		{"id" : "dev_ip",     "value" : ip},
+		{"id" : "dev_hostid", "value" : ""},
+		{"id" : "dev_duid",   "value" : ""},
+		{"id" : "dev_group",  "value" : ""}
 	];
-	modalPrepare('static_ip_modal', dhcpS.AdSIP, modalElements, modalButtons);
-	openModalWindow('static_ip_modal');
+	modalPrepare('device_modal', dhcpS.AdDev, modalElements, modalButtons);
+	setDeviceAdvancedVisible(false);
+	openModalWindow('device_modal');
 }
 
-function editStaticModal()
+function editDeviceModal()
 {
-	editRow=this.parentNode.parentNode;
-	modalButtons = [
-		{"title" : UI.CApplyChanges, "classes" : "btn btn-primary", "function" : function(){editStatic(editRow);}},
+	var editRow = this.parentNode.parentNode;
+	populateGroupDatalist();
+	var modalButtons = [
+		{"title" : UI.CApplyChanges, "classes" : "btn btn-primary", "function" : function() { editDevice(editRow); }},
 		"defaultDiscard"
 	];
 
-	host	= editRow.childNodes[0].firstChild.data;
-	mac	= editRow.childNodes[1].firstChild.data;
-	ip	= editRow.childNodes[2].firstChild.data;
-	hostid	= editRow.childNodes[3].firstChild.data;
-	duid	= editRow.childNodes[4].firstChild.data;
+	var dName  = editRow.childNodes[0].firstChild.data;
+	var dMac   = editRow.childNodes[1].firstChild.data;
+	var dIp    = editRow.childNodes[2].firstChild.data;
+	var dHid   = editRow.childNodes[3].firstChild.data;
+	var dDuid  = editRow.childNodes[4].firstChild.data;
+	var dGroup = editRow.childNodes[5].firstChild.data;
 
-	modalElements = [
-		{"id" : "add_host", "value" : host},
-		{"id" : "add_mac", "value" : mac},
-		{"id" : "add_ip", "value" : ip},
-		{"id" : "add_hostid", "value" : hostid},
-		{"id" : "add_duid", "value" : duid}
+	var modalElements = [
+		{"id" : "dev_name",   "value" : dName  == "-" ? "" : dName},
+		{"id" : "dev_mac",    "value" : dMac},
+		{"id" : "dev_ip",     "value" : dIp    == "-" ? "" : dIp},
+		{"id" : "dev_hostid", "value" : dHid   == "-" ? "" : dHid},
+		{"id" : "dev_duid",   "value" : dDuid  == "-" ? "" : dDuid},
+		{"id" : "dev_group",  "value" : dGroup == "-" ? "" : dGroup}
 	];
-	modalPrepare('static_ip_modal', dhcpS.ESIP, modalElements, modalButtons);
-	openModalWindow('static_ip_modal');
+	modalPrepare('device_modal', dhcpS.EDev, modalElements, modalButtons);
+	// auto-expand the advanced section only if this device already uses IPv6 fields
+	var hasAdvanced = (dHid != "-" && dHid != "") || (dDuid != "-" && dDuid != "");
+	setDeviceAdvancedVisible(hasAdvanced);
+	openModalWindow('device_modal');
 }
