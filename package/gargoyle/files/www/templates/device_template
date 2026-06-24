@@ -1,0 +1,34 @@
+<div class="row form-group">
+				<label class="col-xs-5" id="dev_name_label" for="dev_name"><%~ HsNm %> <em>(<%~ dhcp.opt %>)</em></label>
+				<span class="col-xs-7"><input type="text" id="dev_name" oninput="proofreadDHCPHostName(this)" class="form-control" /></span>
+			</div>
+			<div class="row form-group">
+				<label class="col-xs-5" id="dev_mac_label" for="dev_mac">MAC</label>
+				<span class="col-xs-7"><input type="text" id="dev_mac" oninput="proofreadMac(this)" maxlength="17" class="form-control" /></span>
+			</div>
+			<div class="row form-group">
+				<label class="col-xs-5" id="dev_ip_label" for="dev_ip"><%~ dhcp.FixIP %> <em>(<%~ dhcp.opt %>)</em></label>
+				<span class="col-xs-7"><input type="text" id="dev_ip" oninput="proofreadIp(this)" maxlength="15" class="form-control" /></span>
+			</div>
+			<div class="row form-group">
+				<label class="col-xs-5" id="dev_group_label" for="dev_group"><%~ dhcp.GrpNm %> <em>(<%~ dhcp.opt %>)</em></label>
+				<span class="col-xs-7">
+					<input type="text" id="dev_group" list="dev_group_list" class="form-control" autocomplete="off" placeholder="e.g. family, iot, work, kids" />
+					<datalist id="dev_group_list"></datalist>
+				</span>
+			</div>
+			<div class="row form-group">
+				<span class="col-xs-12">
+					<a href="#" id="dev_advanced_toggle" onclick="toggleDeviceAdvanced();return false;">Show advanced (IPv6 reservation)</a>
+				</span>
+			</div>
+			<div id="dev_advanced_container" style="display:none">
+				<div class="row form-group">
+					<label class="col-xs-5" id="dev_hostid_label" for="dev_hostid"><%~ dhcp.Suff %> <em>(<%~ dhcp.opt %>)</em></label>
+					<span class="col-xs-7"><input type="text" id="dev_hostid" oninput="proofreadIp6(this)" maxlength="11" class="form-control" /></span>
+				</div>
+				<div class="row form-group">
+					<label class="col-xs-5" id="dev_duid_label" for="dev_duid">DUID <em>(<%~ dhcp.opt %>)</em></label>
+					<span class="col-xs-7"><input type="text" id="dev_duid" class="form-control" /></span>
+				</div>
+			</div>

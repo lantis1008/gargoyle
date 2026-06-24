@@ -161,3 +161,10 @@ cat << EOF >/etc/sysupgrade.conf
 EOF
 
 
+
+# Register dnsmasq lease hook for Device Groups (only if no existing script is set)
+existing_dhcp_script=$(uci get dhcp.@dnsmasq[0].dhcpscript 2>/dev/null)
+if [ -z "$existing_dhcp_script" ] ; then
+	uci set dhcp.@dnsmasq[0].dhcpscript=/usr/lib/gargoyle/post_lease.sh
+	uci commit dhcp
+fi

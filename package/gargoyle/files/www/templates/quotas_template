@@ -7,9 +7,15 @@
 			<option value="only"><%~ QOnlyHosts %></option>
 			<option value="others_individual"><%~ HostsWithoutQuotas %></option>
 			<option value="others_combined"><%~ ComboHostsWithoutQuotas %></option>
+			<option value="group"><%~ quotas.DevGroup %></option>
 		</select>
 		<br/>
 	</span>
+	<div id="quota_group_container">
+		<div class="col-xs-offset-5 col-xs-7">
+			<select id="quota_group_select" class="form-control"></select>
+		</div>
+	</div>
 	<div id="quota_ip_container">
 		<div class="col-xs-offset-5 col-xs-7" id="quota_ip_table_container" style="margin-top:0px;margin-bottom:0px;"></div>
 		<div style="padding:0px;margin-top:0px;margin-bottom:0px">

@@ -2,7 +2,7 @@
  *  				Originally designed for use with Gargoyle router firmware (gargoyle-router.com)
  *
  *
- *  Copyright © 2009 by Eric Bishop <eric@gargoyle-router.com>
+ *  Copyright ï¿½ 2009 by Eric Bishop <eric@gargoyle-router.com>
  *  Rewritten for nftables 2025 by Michael Gray <support@lantisproject.com>
  *
  *  This file is free software: you may copy, redistribute and/or modify it
@@ -49,6 +49,7 @@ char** parse_marks(char* list_str, unsigned long max_mask);
 list* parse_quoted_list(char* list_str, char quote_char, char escape_char, char add_remainder_if_uneven_quotes);
 
 int truncate_if_starts_with(char* test_str, char* prefix);
+char* group_name_to_set_name(char* group_name);
 
 char* invert_bitmask(const char* input, int force_32bit);
 
@@ -796,11 +797,41 @@ char* get_option_value_string(struct uci_option* uopt)
 	return opt_str;
 }
 
+char* group_name_to_set_name(char* group_name)
+{
+	int src_len = strlen(group_name);
+	char* sanitized = (char*)malloc(src_len + 1);
+	int i;
+	int out = 0;
+	int last_was_under = 0;
+	for(i = 0; i < src_len; i++)
+	{
+		char c = group_name[i];
+		char out_c;
+		if(c >= 'A' && c <= 'Z') { out_c = c + 32; }
+		else if((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') { out_c = c; }
+		else { out_c = '_'; }
+		/* squeeze consecutive underscores (match shell: tr -cs 'a-z0-9_' '_') */
+		if(out_c == '_' && last_was_under) { continue; }
+		sanitized[out++] = out_c;
+		last_was_under = (out_c == '_');
+	}
+	sanitized[out] = '\0';
+	char* set_name = dynamic_strcat(2, "grp_", sanitized);
+	free(sanitized);
+	if(strlen(set_name) > 31)
+	{
+		set_name[31] = '\0';
+	}
+	return set_name;
+}
+
 char*** parse_ips_and_macs(char* addr_str)
 {
 	unsigned long num_pieces;
 	char** addr_parts = split_on_separators(addr_str, ",", 1, -1, 0, &num_pieces);
-	list* ip_list = initialize_list();
+	list* ip_list = initialize_list();      /* plain IPv4 addresses/ranges/CIDRs */
+	list* set_ref_list = initialize_list(); /* @setname refs from GROUP: entries */
 	list* ip6_list = initialize_list();
 	list* mac_list = initialize_list();
 	
@@ -808,6 +839,14 @@ char*** parse_ips_and_macs(char* addr_str)
 	for(ip_part_index=0; addr_parts[ip_part_index] != NULL; ip_part_index++)
 	{
 		char* next_str = addr_parts[ip_part_index];
+		if(strncmp(next_str, "GROUP:", 6) == 0)
+		{
+			char* setname = group_name_to_set_name(next_str + 6);
+			char* setref = dynamic_strcat(2, "@", setname);
+			free(setname);
+			push_list(set_ref_list, setref);
+			continue;
+		}
 		//ipv4, ipv6 or any can be MAC address. Test it first
 		if(strchr(next_str, ':'))
 		{
@@ -858,20 +897,22 @@ char*** parse_ips_and_macs(char* addr_str)
 
 	char*** return_value = (char***)malloc(3*sizeof(char**));
 
-	unsigned long num1, num2, num3;
-	char** ip_strs = (char**)destroy_list(ip_list, DESTROY_MODE_RETURN_VALUES, &num1);
-	char** ip6_strs = (char**)destroy_list(ip6_list, DESTROY_MODE_RETURN_VALUES, &num2);
-	char** mac_strs = (char**)destroy_list(mac_list, DESTROY_MODE_RETURN_VALUES, &num3);
+	unsigned long num_plain_ip, num_set_refs, num2, num3;
+	char** plain_ip_strs = (char**)destroy_list(ip_list,      DESTROY_MODE_RETURN_VALUES, &num_plain_ip);
+	char** set_ref_strs  = (char**)destroy_list(set_ref_list,  DESTROY_MODE_RETURN_VALUES, &num_set_refs);
+	char** ip6_strs      = (char**)destroy_list(ip6_list,     DESTROY_MODE_RETURN_VALUES, &num2);
+	char** mac_strs      = (char**)destroy_list(mac_list,     DESTROY_MODE_RETURN_VALUES, &num3);
 
-	char* match_ip_str = join_strs(",", ip_strs, -1, 1, 1);
-	char* match_ip6_str = join_strs(",", ip6_strs, -1, 1, 1);
-	char* match_mac_str = join_strs(",", mac_strs, -1, 1, 1);
+	/* plain IPs: join with commas and wrap in { } when multiple (nftables inline set) */
+	char* match_plain_ip_str = join_strs(",", plain_ip_strs, -1, 1, 1);
+	char* match_ip6_str      = join_strs(",", ip6_strs,      -1, 1, 1);
+	char* match_mac_str      = join_strs(",", mac_strs,      -1, 1, 1);
 
-	if(num1 > 1)
+	if(num_plain_ip > 1)
 	{
-		char* tmp = dynamic_strcat(3, "{", match_ip_str, "}");
-		free(match_ip_str);
-		match_ip_str = tmp;
+		char* tmp = dynamic_strcat(3, "{", match_plain_ip_str, "}");
+		free(match_plain_ip_str);
+		match_plain_ip_str = tmp;
 	}
 	if(num2 > 1)
 	{
@@ -885,20 +926,45 @@ char*** parse_ips_and_macs(char* addr_str)
 		free(match_mac_str);
 		match_mac_str = tmp;
 	}
-	
-	if(num1 + num2 + num3 == 0)
+
+	if(num_plain_ip + num_set_refs + num2 + num3 == 0)
 	{
 		free(return_value);
 		return_value = NULL;
 	}
 	else
 	{
-		return_value[MATCH_IP_INDEX] = (char**)malloc(2*sizeof(char*));
+		/*
+		 * Build the IPv4 match array so that:
+		 *   - plain IPs (if any) appear as one entry, already formatted as a
+		 *     single address or "{ip1,ip2,...}" inline set
+		 *   - each GROUP:-derived @setname is a SEPARATE entry so that
+		 *     compute_multi_rules emits one rule per set, letting the connmark
+		 *     OR logic handle them correctly.  Mixing named sets with { } is
+		 *     not valid nftables syntax so they must never be combined.
+		 */
+		unsigned long ip_entry_count = (num_plain_ip > 0 ? 1 : 0) + num_set_refs;
+		char** ip_return = (char**)malloc((ip_entry_count + 1) * sizeof(char*));
+		unsigned long ip_idx = 0;
+		if(num_plain_ip > 0)
+		{
+			ip_return[ip_idx++] = match_plain_ip_str;
+		}
+		else
+		{
+			free(match_plain_ip_str); /* NULL-safe */
+		}
+		unsigned long sr;
+		for(sr = 0; sr < num_set_refs; sr++)
+		{
+			ip_return[ip_idx++] = set_ref_strs[sr];
+		}
+		ip_return[ip_idx] = NULL;
+
+		return_value[MATCH_IP_INDEX]  = ip_return;
 		return_value[MATCH_IP6_INDEX] = (char**)malloc(2*sizeof(char*));
 		return_value[MATCH_MAC_INDEX] = (char**)malloc(2*sizeof(char*));
 
-		return_value[MATCH_IP_INDEX][0] = match_ip_str;
-		return_value[MATCH_IP_INDEX][1] = NULL;
 		return_value[MATCH_IP6_INDEX][0] = match_ip6_str;
 		return_value[MATCH_IP6_INDEX][1] = NULL;
 		return_value[MATCH_MAC_INDEX][0] = match_mac_str;

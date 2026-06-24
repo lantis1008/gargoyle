@@ -126,6 +126,7 @@ function resetData()
 
 		setDocumentFromUci(new UCIContainer(), "", ruleType, rulePrefix);
 		setVisibility(rulePrefix);
+		populateRestrictionGroupSelect(rulePrefix);
 	}
 }
 
@@ -196,6 +197,18 @@ function setVisibility(rulePrefix)
 	setInvisibleIfIdMatches(rulePrefix + "local_port_type", "all", rulePrefix + "local_port", "inline");
 	setInvisibleIfIdMatches(rulePrefix + "app_protocol_type", "all", rulePrefix + "app_protocol", "inline");
 	setInvisibleIfIdMatches(rulePrefix + "url_type", "all", rulePrefix + "url_match_list", "block");
+
+	var grpContainer = document.getElementById(rulePrefix + "applies_to_group_container");
+	if(grpContainer)
+	{
+		var appTo = getSelectedValue(rulePrefix + "applies_to", document);
+		grpContainer.style.display = appTo == "group" ? "block" : "none";
+		if(appTo == "group")
+		{
+			document.getElementById(rulePrefix + "applies_to_4_container").style.display = "none";
+			document.getElementById(rulePrefix + "applies_to_6_container").style.display = "none";
+		}
+	}
 }
 
 function setInvisibleIfAnyChecked(checkIds, associatedElementId, defaultDisplayMode)
@@ -438,6 +451,16 @@ function setDocumentFromUci(sourceUci, sectionId, ruleType, rulePrefix)
 	}
 	setIpTableAndSelectFromUci(sourceUci, pkg, sectionId, "local_addr", rulePrefix + tabcontainer, rulePrefix + tab, rulePrefix + "applies_to", rulePrefix + appaddr);
 
+	var localAddrVal = sourceUci.get(pkg, sectionId, "local_addr");
+	if(localAddrVal.indexOf("GROUP:") === 0)
+	{
+		var groupName = localAddrVal.substring(6);
+		setSelectedValue(rulePrefix + "applies_to", "group", document);
+		setSelectedValue(rulePrefix + "applies_to_group_select", groupName, document);
+		var clearCont = document.getElementById(rulePrefix + tabcontainer);
+		if(clearCont && clearCont.firstChild) { clearCont.removeChild(clearCont.firstChild); }
+	}
+
 	var daysAndHours = sourceUci.get(pkg, sectionId, "active_weekly_ranges");
 	var hours = sourceUci.get(pkg, sectionId, "active_hours");
 	var allDay = (daysAndHours == "" && hours == "");
@@ -638,7 +661,18 @@ function setUciFromDocument(sectionId, ruleType, rulePrefix)
 	{
 		tabcontainer = "applies_to6_table_container";
 	}
-	setFromIpTable(pkg, sectionId, "local_addr", rulePrefix + tabcontainer, rulePrefix + "applies_to");
+	if(getSelectedValue(rulePrefix + "applies_to", document) == "group")
+	{
+		var grpSel = document.getElementById(rulePrefix + "applies_to_group_select");
+		if(grpSel && grpSel.options.length > 0)
+		{
+			uci.set(pkg, sectionId, "local_addr", "GROUP:" + grpSel.value);
+		}
+	}
+	else
+	{
+		setFromIpTable(pkg, sectionId, "local_addr", rulePrefix + tabcontainer, rulePrefix + "applies_to");
+	}
 
 	var daysActive = document.getElementById(rulePrefix + "days_active");
 	if(daysActive.style.display != "none")
@@ -851,10 +885,45 @@ function weekly_i18n(weekly_schd, source) { //this is part of i18n; TODO: best t
 	return joiner.join(" ");
 }
 
+function populateRestrictionGroupSelect(rulePrefix)
+{
+	var sel = document.getElementById(rulePrefix + "applies_to_group_select");
+	if(!sel) { return; }
+	while(sel.firstChild) { sel.removeChild(sel.firstChild); }
+	var gi;
+	for(gi = 0; gi < knownDeviceGroups.length; gi++)
+	{
+		var opt = document.createElement("option");
+		opt.value = knownDeviceGroups[gi];
+		opt.textContent = knownDeviceGroups[gi];
+		sel.appendChild(opt);
+	}
+
+	var appliesToSel = document.getElementById(rulePrefix + "applies_to");
+	if(appliesToSel)
+	{
+		var groupOpt = appliesToSel.querySelector("option[value='group']");
+		if(knownDeviceGroups.length === 0 && groupOpt)
+		{
+			appliesToSel.removeChild(groupOpt);
+			if(appliesToSel.value === "group") { appliesToSel.value = "all"; }
+		}
+		else if(knownDeviceGroups.length > 0 && !groupOpt)
+		{
+			var newOpt = document.createElement("option");
+			newOpt.value = "group";
+			newOpt.textContent = restStr.DevGroup;
+			appliesToSel.appendChild(newOpt);
+		}
+	}
+}
+
 function addRestrictionModal(isRestriction)
 {
 	ruleType = isRestriction ? 'restriction_rule' : 'whitelist_rule';
 	rulePrefix = isRestriction ? 'rule_' : 'exception_';
+
+	populateRestrictionGroupSelect(rulePrefix);
 
 	modalButtons = [
 		{"title" : UI.Add, "classes" : "btn btn-primary", "function" : function(){addNewRule(ruleType, rulePrefix)}},
@@ -863,7 +932,7 @@ function addRestrictionModal(isRestriction)
 
 	modalElements = [];
 
-	setDocumentFromUci(new UCIContainer(), "", ruleType, rulePrefix);	
+	setDocumentFromUci(new UCIContainer(), "", ruleType, rulePrefix);
 
 	modalPrepare(ruleType + '_modal', isRestriction ? restStr.NRRule : restStr.NExcp, modalElements, modalButtons);
 	openModalWindow(ruleType + '_modal');
@@ -875,6 +944,8 @@ function editRestrictionModal(isRestriction, triggerEl)
 	rulePrefix = isRestriction ? 'rule_' : 'exception_';
 	editRow=triggerEl.parentNode.parentNode;
 	editRuleSectionId = editRow.childNodes[1].firstChild.id;
+
+	populateRestrictionGroupSelect(rulePrefix);
 
 	modalButtons = [
 		{"title" : UI.CApplyChanges, "classes" : "btn btn-primary", "function" : function(){editRule(ruleType,rulePrefix,editRow);}},
