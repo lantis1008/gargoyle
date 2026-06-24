@@ -166,6 +166,7 @@ function resetData()
 	setDocumentFromUci(new UCIContainer(), "");
 
 	setVisibility();
+	populateQuotaGroupSelect();
 }
 
 function ipToTableSpan(ip)
@@ -182,6 +183,10 @@ function ipToTableSpan(ip)
 	else if(ipStr == "ALL" || ipStr == "")
 	{
 		ipStr=quotasStr.All;
+	}
+	else if(ipStr.indexOf("GROUP:") === 0)
+	{
+		ipStr = quotasStr.Group + ": " + ipStr.substring(6);
 	}
 	return textListToSpanElement(ipStr.split(/[\t ]*,[\t ]*/), true, document);
 }
@@ -290,6 +295,11 @@ function getIpFromDocument()
 		}
 		ip = ipList.join(",");
 	}
+	else if(getSelectedValue("applies_to_type", document) == "group")
+	{
+		var groupName = getSelectedValue("quota_group_select", document);
+		ip = groupName != "" ? "GROUP:" + groupName : "";
+	}
 	return ip;
 }
 
@@ -322,6 +332,11 @@ function setDocumentIp(ip)
 	else if(ip == "ALL_OTHERS_INDIVIDUAL")
 	{
 		setSelectedValue("applies_to_type", "others_individual", document);
+	}
+	else if(ip.indexOf("GROUP:") === 0)
+	{
+		setSelectedValue("applies_to_type", "group", document);
+		setSelectedValue("quota_group_select", ip.substring(6), document);
 	}
 	else
 	{
@@ -393,8 +408,9 @@ function addNewQuota()
 
 function setVisibility()
 {
-	setInvisibleIfIdMatches("applies_to_type", ["all","others_combined", "others_individual"], "quota_ip_container", "inline", document);
-	setInvisibleIfIdMatches("applies_to_type", ["all","others_combined", "others_individual"], "quota_ip6_container", "inline", document);
+	setInvisibleIfIdMatches("applies_to_type", ["all","others_combined", "others_individual", "group"], "quota_ip_container", "inline", document);
+	setInvisibleIfIdMatches("applies_to_type", ["all","others_combined", "others_individual", "group"], "quota_ip6_container", "inline", document);
+	setInvisibleIfIdMatches("applies_to_type", ["all","only","others_combined", "others_individual"], "quota_group_container", "inline", document);
 	setInvisibleIfIdMatches("quota_reset", ["hour", "day", "never"], "quota_day_container", "block", document);
 	setInvisibleIfIdMatches("quota_reset", ["hour", "never"], "quota_hour_container", "block", document);
 	setInvisibleIfIdMatches("max_up_type", ["unlimited"], "max_up_container", "inline", document);
@@ -1272,8 +1288,42 @@ function weekly_i18n(weekly_schd, direction) { //this is part of i18n; TODO: bes
 	return joiner.join(" ");
 }
 
+function populateQuotaGroupSelect()
+{
+	var sel = document.getElementById("quota_group_select");
+	if(!sel) { return; }
+	while(sel.firstChild) { sel.removeChild(sel.firstChild); }
+	var gi;
+	for(gi = 0; gi < knownDeviceGroups.length; gi++)
+	{
+		var opt = document.createElement("option");
+		opt.value = knownDeviceGroups[gi];
+		opt.textContent = knownDeviceGroups[gi];
+		sel.appendChild(opt);
+	}
+
+	var appliesToSel = document.getElementById("applies_to_type");
+	if(appliesToSel)
+	{
+		var groupOpt = appliesToSel.querySelector("option[value='group']");
+		if(knownDeviceGroups.length === 0 && groupOpt)
+		{
+			appliesToSel.removeChild(groupOpt);
+			if(appliesToSel.value === "group") { appliesToSel.value = "all"; }
+		}
+		else if(knownDeviceGroups.length > 0 && !groupOpt)
+		{
+			var newOpt = document.createElement("option");
+			newOpt.value = "group";
+			newOpt.textContent = quotasStr.DevGroup;
+			appliesToSel.appendChild(newOpt);
+		}
+	}
+}
+
 function addQuotaModal()
 {
+	populateQuotaGroupSelect();
 	modalButtons = [
 		{"title" : UI.Add, "classes" : "btn btn-primary", "function" : addNewQuota},
 		"defaultDismiss"
@@ -1288,6 +1338,7 @@ function addQuotaModal()
 
 function editQuotaModal()
 {
+	populateQuotaGroupSelect();
 	editRow=this.parentNode.parentNode;
 	editId = editRow.childNodes[rowCheckIndex].firstChild.id;
 

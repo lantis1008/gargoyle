@@ -20,6 +20,7 @@ restStr.RAppl="Rule Applies To";
 restStr.AHsts="All Hosts";
 restStr.EHsts="All Hosts Except";
 restStr.OHsts="Only The Following Hosts";
+restStr.DevGroup="Device Group";
 restStr.HstAddr="Specify an IP, IP range or MAC address";
 restStr.Schd="Schedule";
 restStr.ADay="All Day";

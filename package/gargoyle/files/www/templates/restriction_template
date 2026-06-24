@@ -21,11 +21,17 @@
 			<option value='all'><%~ AHsts %></option>
 			<option value='except'><%~ EHsts %></option>
 			<option value='only'><%~ OHsts %></option>
+			<option value='group'><%~ restrictions.DevGroup %></option>
 		</select>
 	</span>
 </div>
 
 <div id="rule_applies_to_container" class="row form-group">
+	<div id="rule_applies_to_group_container" style="display:none;">
+		<div class="col-xs-offset-5 col-xs-7">
+			<select id="rule_applies_to_group_select" class="form-control"></select>
+		</div>
+	</div>
 	<div id="rule_applies_to_4_container">
 		<div class="col-xs-offset-5 col-xs-7" id="rule_applies_to_table_container"></div>
 		<div class="col-xs-offset-5 col-xs-7">
