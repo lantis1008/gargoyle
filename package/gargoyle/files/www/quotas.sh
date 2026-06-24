@@ -23,6 +23,12 @@
 
 	echo "var tcInstalled=\""$(gpkg list-installed -r "^tc-(tiny|full)" 2>&1)"\";"
 
+	echo "var knownDeviceGroups = [];"
+	uci show dhcp 2>/dev/null | grep '^dhcp\.[^.]*\.group=' | sed "s/^[^=]*=//; s/'//g" | sort -u | grep -v '^$' | while read grp ; do
+		escaped=$(printf '%s' "$grp" | sed 's/\\/\\\\/g; s/"/\\"/g')
+		printf 'knownDeviceGroups.push("%s");\n' "$escaped"
+	done
+
 	print_quotas
 
 	prAM=$(i18n pAM)
