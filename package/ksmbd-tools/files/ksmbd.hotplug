@@ -41,7 +41,7 @@ device_get_vars() {
 	}
 	[ -n "$mount" ] && {
 		uci -c /var/run/config batch <<-EOF
-			set ksmbd.$DEVICE="share"
+			set ksmbd.$DEVICE="sambashare"
 			set ksmbd.$DEVICE.name="${label:-$DEVICE}"
 			set ksmbd.$DEVICE.path="$mount"
 			set ksmbd.$DEVICE.browseable="yes"
