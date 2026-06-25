@@ -1,0 +1,10 @@
+--- a/package/network/config/netifd/files/lib/netifd/dhcp.script
++++ b/package/network/config/netifd/files/lib/netifd/dhcp.script
+@@ -61,6 +61,7 @@
+ 	[ -n "$timezone" ] && json_add_int timezone "$timezone"
+ 	[ -n "$lease" ]    && json_add_int leasetime "$lease"
+ 	[ -n "$serverid" ] && json_add_string dhcpserver "$serverid"
++	json_add_int leaseacquired "$(sed -ne 's![^0-9].*$!!p' /proc/uptime)"
+ 	proto_close_data
+ 
+ 	proto_send_update "$INTERFACE"

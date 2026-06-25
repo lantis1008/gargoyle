@@ -1,0 +1,227 @@
+#!/bin/sh
+
+. /lib/functions/network.sh
+. /usr/lib/bwmon-gargoyle/functions.sh
+. /usr/lib/gargoyle_firewall_util/gargoyle_firewall_util.sh
+
+backup_script_dir="/tmp/bw_backup"
+backup_script="$backup_script_dir/do_bw_backup.sh"
+tmp_cron="/tmp/tmp.cron"
+bw_table_type=inet
+bw_table_name=bwmon
+download_table="$bw_table_type $bw_table_name"
+download_chain=bw_ingress
+upload_table="$bw_table_type $bw_table_name"
+upload_chain=mangle_bw_egress
+
+minute_s=60
+hour_s=3600
+day_s=86400
+
+total1_interval=2
+total1_num_intervals=449
+total1_reset_time=2
+
+total2_interval="minute"
+total2_num_intervals=359
+
+total3_interval=$((3*$minute_s))
+total3_num_intervals=479
+total3_reset_time=$((3*$minute_s))
+
+total4_interval=$((2*$hour_s))
+total4_num_intervals=359
+total4_reset_time=$((2*$hour_s))
+	
+total5_interval="day"
+total5_num_intervals=365
+
+bdist0_interval=$total1_interval
+bdist0_num_intervals=$total1_num_intervals
+bdist0_reset_time=$total1_reset_time
+
+bdist1_interval="minute"
+bdist1_num_intervals=15
+
+bdist2_interval=$((15*$minute_s))
+bdist2_num_intervals=24
+bdist2_reset_time=$((15*$minute_s))
+
+bdist3_interval="hour"
+bdist3_num_intervals=24
+
+bdist4_interval="day"
+bdist4_num_intervals=31
+
+bdist5_interval="month"
+bdist5_num_intervals=12
+
+custom_reset_time=0
+bdist6_interval="month"
+bdist6_num_intervals=12
+bdist6_reset_time=$(($custom_reset_time*$day_s))
+
+
+setup()
+{
+	define_wan_if
+	wan_ip=""
+	bw_if="$wan_if"
+	if [ -z "$bw_if" ] ; then
+		network_get_device bw_if lan || \
+			bw_if=$(uci -q get network.lan.ifname)
+	else
+		network_get_ipaddr wan_ip wan
+	fi
+
+	network_get_subnet lan_ip lan
+	network_get_subnets6 lan6_ips lan
+	network_find_wan6 iface6 && \
+		network_get_ipaddrs6 wan6_ips "$iface6"
+	lan6_ipstr="$(echo "{$lan6_ips}" | sed 's/ /,/g')"
+	wan6_ipstr="$(echo "{$wan6_ips}" | sed 's/ /,/g')"
+
+	establish_table_base_chains $bw_table_type $bw_table_name
+	nft add chain $download_table $download_chain
+	nft insert rule $download_table input iifname $bw_if jump $download_chain
+	nft insert rule $download_table forward iifname $bw_if jump $download_chain
+
+	nft add chain $upload_table $upload_chain
+	nft add rule $upload_table mangle_postrouting oifname $bw_if jump $upload_chain
+
+	# code to help filter out bogons on distribution monitors, 
+	# which make up really small amount of bandwidth, but screw up monitoring
+	nft add rule $upload_table $upload_chain ct mark set ct mark \& 0x00FFFFFF \| 0x0
+	[ -n "$lan_ip" ] && nft add rule $upload_table $upload_chain ip saddr $lan_ip ct mark set ct mark \& 0xF0FFFFFF \| 0x0F000000
+	[ -n "$wan_ip" ] && nft add rule $upload_table $upload_chain ip saddr $wan_ip ct mark set ct mark \& 0xF0FFFFFF \| 0x0F000000
+	[ "$lan6_ipstr" = "{}" ] || nft add rule $upload_table $upload_chain ip6 saddr $lan6_ipstr ct mark set ct mark \& 0xF0FFFFFF \| 0x0F000000
+	[ "$wan6_ipstr" = "{}" ] || nft add rule $upload_table $upload_chain ip6 saddr $wan6_ipstr ct mark set ct mark \& 0xF0FFFFFF \| 0x0F000000
+	nft add rule $upload_table $upload_chain ct mark \& 0x0F000000 == 0x0 return
+	nft add rule $upload_table $upload_chain ct mark set ct mark \& 0x00FFFFFF \| 0x0
+
+	nft add rule $download_table $download_chain ct mark set ct mark \& 0x00FFFFFF \| 0x0
+	[ -n "$lan_ip" ] && nft add rule $download_table $download_chain ip daddr $lan_ip ct mark set ct mark \& 0xF0FFFFFF \| 0x0F000000
+	[ -n "$wan_ip" ] && nft add rule $download_table $download_chain ip daddr $wan_ip ct mark set ct mark \& 0xF0FFFFFF \| 0x0F000000
+	[ "$lan6_ipstr" = "{}" ] || nft add rule $download_table $download_chain ip6 daddr $lan6_ipstr ct mark set ct mark \& 0xF0FFFFFF \| 0x0F000000
+	[ "$wan6_ipstr" = "{}" ] || nft add rule $download_table $download_chain ip6 daddr $wan6_ipstr ct mark set ct mark \& 0xF0FFFFFF \| 0x0F000000
+	nft add rule $download_table $download_chain ct mark \& 0x0F000000 == 0x0 return
+	nft add rule $download_table $download_chain ct mark set ct mark \& 0x00FFFFFF \| 0x0
+
+	custom_reset_time=$(uci get bwmon_gargoyle.custom_monitor.month_reset_day 2>/dev/null)
+	if [ -z "$custom_reset_time" ] ; then
+		custom_reset_time=0
+	fi
+	bdist6_reset_time=$(($custom_reset_time*$day_s))
+
+	ids=""
+	high_res_15m=$(uci get bwmon_gargoyle.global.high_res_15m 2>/dev/null)
+	#echo "high res 15m = $high_res_15m"
+	if [ "$high_res_15m" = "1" ] ; then
+		n=0
+		bdist_interval=$(eval "echo \$bdist"$n"_interval")
+		bdist_num_intervals=$(eval "echo \$bdist"$n"_num_intervals")
+		bdist_reset_time=$(eval "echo \$bdist"$n"_reset_time")
+		if [ -n "$bdist_reset_time" ] ; then bdist_reset_time="reset-time $bdist_reset_time" ; fi
+		if [ -n "$lan_ip" ] ; then
+			nft add rule $download_table $download_chain bandwidth id \""bdist"$n"-download-$bdist_interval-$bdist_num_intervals"\" type individual-dst reset-interval $bdist_interval intervals-to-save $bdist_num_intervals $bdist_reset_time
+			nft add rule $upload_table $upload_chain bandwidth id \""bdist"$n"-upload-$bdist_interval-$bdist_num_intervals"\" type individual-src reset-interval $bdist_interval intervals-to-save $bdist_num_intervals $bdist_reset_time
+			ids="bdist"$n"-download-$bdist_interval-$bdist_num_intervals bdist"$n"-upload-$bdist_interval-$bdist_num_intervals" 
+		fi
+	else
+		rm -rf /tmp/data/bwmon/bdist0*
+		rm -rf /tmp/data/bwmon/qos0*
+	fi
+	
+	mon_nums="1 2 3 4 5"
+	custom_bwmon=$(uci get bwmon_gargoyle.custom_monitor.enable 2>/dev/null)
+	if [ "$custom_bwmon" = "1" ] ; then
+		mon_nums="$mon_nums 6"
+	fi
+	for n in $mon_nums ; do
+		total_interval=$(eval "echo \$total"$n"_interval")
+		total_num_intervals=$(eval "echo \$total"$n"_num_intervals")
+		total_reset_time=$(eval "echo \$total"$n"_reset_time")
+		if [ -n "$total_reset_time" ] ; then total_reset_time="reset-time $total_reset_time" ; fi
+
+		bdist_interval=$(eval "echo \$bdist"$n"_interval")
+		bdist_num_intervals=$(eval "echo \$bdist"$n"_num_intervals")
+		bdist_reset_time=$(eval "echo \$bdist"$n"_reset_time")
+		if [ -n "$bdist_reset_time" ] ; then bdist_reset_time="reset-time $bdist_reset_time" ; fi
+
+		if [ $n -lt 6 ] ; then
+			nft add rule $download_table $download_chain bandwidth id \""total"$n"-download-$total_interval-$total_num_intervals"\" reset-interval $total_interval intervals-to-save $total_num_intervals $total_reset_time
+			nft add rule $upload_table $upload_chain bandwidth id \""total"$n"-upload-$total_interval-$total_num_intervals"\" reset-interval $total_interval intervals-to-save $total_num_intervals $total_reset_time
+
+			next_ids="total"$n"-download-$total_interval-$total_num_intervals total"$n"-upload-$total_interval-$total_num_intervals"
+			if [ -z "$ids" ] ; then
+				ids="$next_ids"
+			else
+				ids="$ids $next_ids"
+			fi
+		fi
+
+		if [ -n "$lan_ip" ] ; then
+			nft add rule $download_table $download_chain bandwidth id \""bdist"$n"-download-$bdist_interval-$bdist_num_intervals"\" type individual-dst reset-interval $bdist_interval intervals-to-save $bdist_num_intervals $bdist_reset_time
+			nft add rule $upload_table $upload_chain bandwidth id \""bdist"$n"-upload-$bdist_interval-$bdist_num_intervals"\" type individual-src reset-interval $bdist_interval intervals-to-save $bdist_num_intervals $bdist_reset_time
+			ids="$ids bdist"$n"-download-$bdist_interval-$bdist_num_intervals bdist"$n"-upload-$bdist_interval-$bdist_num_intervals" 
+		fi
+
+	done
+
+	touch /etc/crontabs/root
+	grep -v "$backup_script" /etc/crontabs/root > "$tmp_cron"
+	echo "0 0,4,8,12,16,20 * * * $backup_script" >> "$tmp_cron"
+	
+	mkdir -p "$backup_script_dir"
+	echo "#!/bin/sh"          > "$backup_script"
+	echo "touch /etc/banner" >> "$backup_script"
+	chmod 700 "$backup_script"
+	
+
+	for i in $ids ; do
+		is_total123=$(echo "$i" | egrep "total[123]")
+		is_bdist123=$(echo "$i" | egrep "bdist[0123]")
+		if [ -n "$is_total123" ] || [ -n "$is_bdist123" ] ; then
+			bw_restore "$i" 1
+		else
+			bw_restore "$i" 0
+		fi
+	done
+
+	update_cron
+}
+
+teardown()
+{
+	#check that we aren't already stopped before backing up data
+	have_up=$(nft list table $upload_table 2>/dev/null | grep "chain ${upload_chain}")
+	have_down=$(nft list table $download_table 2>/dev/null | grep "chain ${download_chain}")
+	if [ -n "$have_up" ] || [ -n "$have_down" ] ; then
+		sh "$backup_script" 2>/dev/null
+		rm -rf "$backup_script"
+
+		touch /etc/crontabs/root
+		grep -v "$backup_script" /etc/crontabs/root > "$tmp_cron"
+		update_cron
+	
+		if [ -n "$have_up" ] ; then
+			delete_chain_from_table $bw_table_type $bw_table_name $upload_chain >/dev/null 2>&1
+		fi
+		if [ -n "$have_down" ] ; then
+			delete_chain_from_table $bw_table_type $bw_table_name $download_chain >/dev/null 2>&1
+		fi
+	fi
+}
+
+RUN_MODE="$1"
+
+if [ "$RUN_MODE" != "start" ] && [ "$RUN_MODE" != "stop" ] && [ "$RUN_MODE" != "restart" ] ; then
+	RUN_MODE="restart"
+fi
+
+if [ "$RUN_MODE" = "start" ] || [ "$RUN_MODE" = "restart" ] ; then
+	teardown
+	setup
+elif [ "$RUN_MODE" = "stop" ] ; then
+	teardown
+fi

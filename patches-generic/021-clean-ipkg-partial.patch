@@ -1,0 +1,34 @@
+--- a/include/rootfs.mk
++++ b/include/rootfs.mk
+@@ -69,6 +69,14 @@
+   endef
+ endif
+ 
++ifdef CONFIG_CLEAN_IPKG_PARTIAL
++  define clean_ipkg
++	-find $(1)/usr/lib/opkg/info/* -type f -and -not -name '*.control' -and -not -name 'plugin-gargoyle-*' | $(XARGS) rm -rf
++	-find $(1)/usr/lib/opkg/info/* -type f -and -name '*.control' -and -not -name 'plugin-gargoyle-*' | $(XARGS) sed -i -ne '/^Require-User: /p'
++	-find $(1)/usr/lib/opkg -empty | $(XARGS) rm -rf
++  endef
++endif
++
+ define prepare_rootfs
+ 	$(if $(2),@if [ -d '$(2)' ]; then \
+ 		$(call file_copy,$(2)/.,$(1)); \
+--- a/config/Config-build.in
++++ b/config/Config-build.in
+@@ -112,6 +112,14 @@ menu "Global build settings"
+ 		  This removes all ipkg/opkg status data files from the target directory
+ 		  before building the root filesystem.
+ 
++	config CLEAN_IPKG_PARTIAL
++		bool
++		prompt "Partially remove ipkg/opkg status data files in final images"
++		default n
++		help
++		  This removes most ipkg/opkg status data files (excluding *.control and plugin-gargoyle-*) from
++		  the target directory before building the root filesystem.
++
+ 	config IPK_FILES_CHECKSUMS
+ 		bool
+ 		prompt "Record files checksums in package metadata"

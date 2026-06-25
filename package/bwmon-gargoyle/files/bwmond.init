@@ -1,0 +1,49 @@
+#!/bin/sh /etc/rc.common
+START=55
+
+include /lib/network
+include /usr/lib/gargoyle_firewall_util
+. /usr/lib/bwmon-gargoyle/functions.sh
+
+start()
+{
+	bwmonenabled="$(uci -q get bwmon_gargoyle.global.enabled)"
+	if [ "$bwmonenabled" != "1" ] ; then
+		stop
+		return
+	fi
+
+	if [ ! -d /tmp/data/bwmon ] ; then
+		rm -rf /tmp/data/bwmon
+		mkdir -p /tmp/data/bwmon
+ 	fi
+	if [ ! -d /usr/data/bwmon ] ; then 
+		rm -rf /usr/data/bwmon
+		mkdir -p /usr/data/bwmon
+	fi
+
+	# Run all bwmon.d scripts in order
+	for file in /usr/lib/bwmon-gargoyle/bwmon-gargoyle.d/*.bwmon; do
+		$file "start"
+	done
+}
+
+stop()
+{
+	# Run all bwmon.d scripts in order
+	for file in /usr/lib/bwmon-gargoyle/bwmon-gargoyle.d/*.bwmon; do
+		$file "stop"
+	done
+}
+
+restart()
+{
+	stop
+	start
+}
+
+boot()
+{
+	#Do nothing during init.  Start is called by hotplug.
+	return
+}

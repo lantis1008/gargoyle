@@ -1,0 +1,17 @@
+				<div class="row form-group">
+					<label class="col-xs-5" id='add_dest_label' for='add_dest'><%~ routing.DstnM %></label>
+					<span class="col-xs-7"><input type='text' id='add_dest' class='form-control' oninput='proofreadRouteIp(this)' maxLength='35' /></span>
+				</div>
+				<div class="row form-group">
+					<label class="col-xs-5" id='add_iface_label' for='add_iface'><%~ Ntwk %></label>
+					<span class="col-xs-7">
+						<select id='add_iface' class='form-control'>
+							<option value="wan">WAN</option>
+							<option value="lan">LAN</option>
+						</select>
+					</span>
+				</div>
+				<div class="row form-group">
+					<label class="col-xs-5" id='add_gateway_label' for='add_gateway'><%~ Gtwy %></label>
+					<span class="col-xs-7"><input type='text' id='add_gateway' oninput='proofreadGatewayIp(this)' maxLength='15' class='form-control' /></span>
+				</div>

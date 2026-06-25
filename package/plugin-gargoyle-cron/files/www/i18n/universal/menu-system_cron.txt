@@ -1,0 +1,12 @@
+#fallback is the string the web UI will use when the target language is not present
+
+fallback=Cron jobs
+EN=Cron jobs
+ES=Cron trabajos
+DE=Cron arbeitsplätze
+BR=Cron empregos
+PL=Zadania cron
+ZH-CN=Cron 任务
+RU=Cron планировщик
+NO=Cron arbeidsplasser
+CS=Cron pracovní místa

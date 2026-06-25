@@ -1,0 +1,46 @@
+--- a/include/image.mk
++++ b/include/image.mk
+@@ -193,8 +193,11 @@ DTC_FLAGS += \
+ # @param 2: Padding.
+ ##
+ define Image/pad-to
+-	dd if=$(1) of=$(1).new bs=$(2) conv=sync
+-	mv $(1).new $(1)
++	if [ -e "$(1)" ]; then \
++		dd if=$(1) of=$(1).new bs=$(2) conv=sync; \
++		mv $(1).new $(1); \
++	fi; \
++	echo ""
+ endef
+ 
+ ifeq ($(DUMP),)
+--- a/target/linux/ramips/image/Makefile
++++ b/target/linux/ramips/image/Makefile
+@@ -83,8 +83,11 @@ define Build/mkdlinkfw-factory
+ 		-F $@ \
+ 		-o $@.new \
+ 		$(if $(DLINK_IMAGE_OFFSET), -O $(DLINK_IMAGE_OFFSET)) \
+-		-s $(DLINK_FIRMWARE_SIZE)
+-	mv $@.new $@
++		-s $(DLINK_FIRMWARE_SIZE); \
++	if [ -e "$@.new" ]; then \
++		mv $@.new $@; \
++	fi; \
++	echo ""
+ endef
+ 
+ define Build/mkdlinkfw-loader
+@@ -93,8 +96,11 @@ define Build/mkdlinkfw-loader
+ 		-r $@ \
+ 		-o $@.new \
+ 		$(if $(DLINK_IMAGE_OFFSET), -O $(DLINK_IMAGE_OFFSET)) \
+-		-s $(DLINK_FIRMWARE_SIZE)
+-	mv $@.new $@
++		-s $(DLINK_FIRMWARE_SIZE); \
++	if [ -e "$@.new" ]; then \
++		mv $@.new $@; \
++	fi; \
++	echo ""
+ endef
+ 
+ define Build/netis-tail

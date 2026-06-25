@@ -1,0 +1,188 @@
+#!/bin/sh
+
+. /lib/functions/network.sh
+. /usr/lib/bwmon-gargoyle/functions.sh
+
+bwmonscript="/usr/lib/bwmon-gargoyle/bwmon-gargoyle.d/050-tor.bwmon"
+
+if [ -f /tmp/tor.firewall.running ] ; then
+	exit
+fi
+touch /tmp/tor.firewall.running
+
+clear_chains()
+{
+	delete_chain_from_table inet fw4 nat_tor_client
+	delete_chain_from_table inet fw4 tor_client
+	delete_chain_from_table inet fw4 tor_relay
+}
+
+initialize()
+{
+	enabled=$( uci get tor.global.enabled 2>/dev/null )
+	client_mode=$( uci get tor.client.client_mode 2>/dev/null )
+	relay_mode=$( uci get tor.relay.relay_mode 2>/dev/null )
+	mem_disabled=$( uci get tor.global.disabled_due_to_memory 2>/dev/null )
+	if  [ "$mem_disabled" = "1" ] ; then
+		sleep 3
+		enabled=$( uci get tor.global.enabled 2>/dev/null )
+	fi
+	
+	if [ -z "$enabled" ] ; then
+		enabled = "0"
+	fi
+	
+	if [ "$enabled" != "0" ] && [ "$client_mode" != "0" ] ; then
+		
+	
+		enabled_ip_file=$( uci get tor.client.enabled_ip_file 2>/dev/null)
+		dns_port=$( uci get tor.client.dns_port 2>/dev/null )
+		trans_port=$( uci get tor.client.trans_port 2>/dev/null )
+		zone=$( uci get tor.client.zone 2>/dev/null )
+		block_unsupported_proto=$( uci get tor.client.block_unsupported_proto 2>/dev/null )
+		if [ -z "$zone" ] ; then 
+			zone="lan"
+		fi
+		network_get_ipaddr zone_ip "$zone"
+		network_get_subnet zone_mask "$zone"
+		
+		hidden_service_subnet=$( uci get tor.client.hidden_service_subnet 2>/dev/null )
+		hidden_service_mask_bits=$( uci get tor.client.hidden_service_mask_bits 2>/dev/null )
+		if [ -z "$hidden_service_subnet" ] || [ -z "$hidden_service_mask_bits" ] ; then
+			hidden_service_subnet="10.192.0.0"
+			hidden_service_mask_bits="12"
+			uci set tor.client.hidden_service_subnet="$hidden_service_subnet"
+			uci set tor.client.hidden_service_mask_bits="$hidden_service_mask_bits"
+			uci commit
+		fi
+	
+	
+		# setup client mode firewall rules
+		nft add chain inet fw4 nat_tor_client
+		nft add chain inet fw4 tor_client
+
+		if [ "$client_mode" = "3" ] || [ "$client_mode" = "2" ] ; then
+			uci del_list dhcp.@dnsmasq[0].rebind_domain='.onion'			
+			cur_onion_server=$( uci get dhcp.@dnsmasq[0].server | grep -o "\/.onion\/[0-9\.#]*" )
+			network_get_ipaddr client_listen_ip "$zone"
+			if [ -n "$cur_onion_server" ] ; then
+				uci del_list dhcp.@dnsmasq[0].server="$cur_onion_server"
+			fi
+			uci add_list dhcp.@dnsmasq[0].rebind_domain='.onion'
+			uci add_list dhcp.@dnsmasq[0].server="/.onion/$client_listen_ip#$dns_port"
+			uci commit
+			/etc/init.d/dnsmasq restart
+
+			nft add rule inet fw4 nat_tor_client tcp dport != 53 ip daddr $hidden_service_subnet/$hidden_service_mask_bits redirect to :$trans_port
+		fi
+
+		test_tor_active=""
+		if [ "$client_mode" = "2" ] ; then
+		
+			if [ -n "$enabled_ip_file" ] ; then
+				touch "$enabled_ip_file" 
+			fi
+		
+			nft delete set inet fw4 tor_active_ips4
+			nft add set inet fw4 tor_active_ips4 \{ type ipv4_addr\; \}
+			for ip in $(cat $enabled_ip_file) ; do nft add element inet fw4 tor_active_ips4 \{ $ip \} ; done
+			
+			nft add rule inet fw4 nat_tor_client ip saddr @tor_active_ips4 return
+			test_tor_active=" ip saddr @tor_active_ips4 "
+		fi
+	
+	
+	
+		if [ "$client_mode" = "1" ] || [ "$client_mode" = "2" ] ; then
+	
+			# dns rules
+			nft add rule inet fw4 nat_tor_client meta nfproto ipv4 meta l4proto \{ tcp, udp \} th dport 53 redirect to :$dns_port
+		
+			# don't redirect local addresses
+			if [ -n "$zone_mask" ] ; then
+				nft add rule inet fw4 nat_tor_client ip daddr $zone_mask return
+				nft add rule inet fw4 tor_client ip daddr $zone_mask return
+			elif [ -n "$zone_ip" ] ; then
+				nft add rule inet fw4 nat_tor_client ip daddr $zone_ip return
+				nft add rule inet fw4 tor_client ip daddr $zone_ip return
+			fi
+			
+			# redirect to tor transparent proxy
+			nft add rule inet fw4 nat_tor_client meta nfproto ipv4 tcp dport != 53 redirect to :$trans_port
+		
+			# block udp/icmp if requested
+			if [ "$block_unsupported_proto" = "1" ] ; then
+				nft add rule inet fw4 tor_client meta nfproto ipv4 meta l4proto tcp return
+				nft add rule inet fw4 tor_client meta nfproto ipv4 udp dport 53 return
+				nft add rule inet fw4 tor_client reject
+				nft insert rule inet fw4 forward_${zone} $test_tor_active jump tor_client
+			fi
+
+			# block ipv6 for all hosts (yes, even in mode 2) to prevent leakage
+			nft insert rule inet fw4 tor_client meta nfproto ipv6 reject
+			nft insert rule inet fw4 tor_client meta nfproto ipv6 meta l4proto tcp reject with tcp reset
+			nft add rule inet fw4 forward_rule meta nfproto ipv6 jump tor_client
+			# block ipv6 dns
+			nft add rule inet fw4 output_rule meta nfproto ipv6 meta l4proto \{ tcp, udp \} th dport 53 jump tor_client
+			nft add rule inet fw4 input_rule meta nfproto ipv6 meta l4proto \{ tcp, udp \} th dport 53 jump tor_client
+		fi
+		nft insert rule inet fw4 dstnat_${zone} jump nat_tor_client
+	fi
+	
+	
+	
+	if [ "$enabled" != "0" ]  && [ "$relay_mode" != "0" ] ; then
+		relay_zone=$(uci get tor.relay.zone)
+		relay_port=$(uci get tor.relay.relay_port)
+		obfsproxy_port=$(uci get tor.relay.obfsproxy_port)
+	
+		nft add chain inet fw4 tor_relay
+		nft insert rule inet fw4 tor_relay tcp dport $relay_port accept
+		if [ "$relay_mode" = "1" ] && [ -n "$obfsproxy_port" ] && [ "$obfsproxy_port" != "0" ] ; then
+			nft insert rule inet fw4 tor_relay meta nfproto ipv4 tcp dport $obfsproxy_port accept
+			#nft insert rule inet fw4 tor_relay meta nfproto ipv6 tcp dport $obfsproxy_port accept
+		fi
+		nft insert rule inet fw4 input_${relay_zone}_rule jump tor_relay
+	fi
+	
+	if [ "$enabled" != "0" ]  && [ "$relay_mode$client_mode" != "00" ] ; then
+		# enable rebuilding tor_relays ipset
+		touch /etc/crontabs/root
+		grep -v /usr/sbin/update_tor_nftset > "$tmp_cron"
+		echo "* * * * * /usr/sbin/update_tor_nftset" >> "$tmp_cron"
+	
+		update_cron
+		
+		[ -e $bwmonscript ] && $bwmonscript "start"
+	fi
+}
+
+shutdown()
+{
+	touch /etc/crontabs/root
+
+	grep -v /usr/sbin/update_tor_nftset > "$tmp_cron"
+	update_cron
+
+	clear_chains
+	
+	[ -e $bwmonscript ] && $bwmonscript "stop"
+}
+
+
+RUN_MODE="$1"
+
+
+if [ "$RUN_MODE" != "start" ] && [ "$RUN_MODE" != "stop" ] && [ "$RUN_MODE" != "restart" ] ; then
+	RUN_MODE="restart"
+fi
+
+if [ "$RUN_MODE" = "start" ] || [ "$RUN_MODE" = "restart" ] ; then
+	shutdown
+	initialize
+elif [ "$RUN_MODE" = "stop" ] ; then
+	shutdown
+fi
+
+rm /tmp/tor.firewall.running
+

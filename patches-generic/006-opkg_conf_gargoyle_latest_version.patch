@@ -1,0 +1,8 @@
+--- a/package/system/opkg/files/opkg.conf
++++ b/package/system/opkg/files/opkg.conf
+@@ -1,4 +1,5 @@
++src/gz gargoyle http://www.gargoyle-router.com/packages/gargoyle-1.14/%T
+ dest root /
+ dest ram /tmp
+ lists_dir ext /var/opkg-lists
+ option overlay_root /overlay

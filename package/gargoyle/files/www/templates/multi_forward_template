@@ -1,0 +1,26 @@
+				<div class="row form-group">
+					<label class="col-xs-5" id='addr_desc_label' for='addr_desc'><%~ port.Desc %> <em><%~ optl %></em></label>
+					<span class="col-xs-7"><input type='text' id='addr_desc' maxLength='32' class='form-control' /></span>
+				</div>
+				<div class="row form-group">
+					<label class="col-xs-5" id='addr_prot_label' for='addr_prot'><%~ Proto %></label>
+					<span class="col-xs-7">
+						<select id='addr_prot' class='form-control'>
+							<option value='<%~ both %>'><%~ both %></option>
+							<option value='TCP'>TCP</option>
+							<option value='UDP'>UDP</option>
+						</select>
+					</span>
+				</div>
+				<div class="row form-group">
+					<label class="col-xs-5" id='addr_sp_label' for='addr_sp'><%~ SPrt %></label>
+					<span class="col-xs-7"><input type='text' id='addr_sp' oninput='proofreadNumericRange(this,1,65535)' maxLength='5' class='form-control' /></span>
+				</div>
+				<div class="row form-group">
+					<label class="col-xs-5" id='addr_ep_label' for='addr_ep'><%~ EPrt %></label>
+					<span class="col-xs-7"><input type='text' id='addr_ep' oninput='proofreadNumeric(this,1,65535)' maxLength='5' class='form-control' /></span>
+				</div>
+				<div class="row form-group">
+					<label class="col-xs-5" id='addr_ip_label' for='addr_ip'><%~ TIP %></label>
+					<span class="col-xs-7"><input type='text' id='addr_ip' oninput='proofreadIp(this)' maxLength='15' class='form-control' /></span>
+				</div>

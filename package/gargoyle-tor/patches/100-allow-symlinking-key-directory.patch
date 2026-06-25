@@ -1,0 +1,34 @@
+--- a/src/lib/fs/dir.c
++++ b/src/lib/fs/dir.c
+@@ -49,6 +49,8 @@
+ #include <errono.h>
+ #include <string.h>
+ 
++#define O_NOFOLLOW 0
++
+ /** Check whether <b>dirname</b> exists and is private.  If yes return 0.
+  * If <b>dirname</b> does not exist:
+  *  - if <b>check</b>&CPD_CREATE, try to create it and return 0 on success.
+--- a/src/lib/fs/files.h
++++ b/src/lib/fs/files.h
+@@ -35,9 +35,7 @@
+ #ifndef O_TEXT
+ #define O_TEXT 0
+ #endif
+-#ifndef O_NOFOLLOW
+ #define O_NOFOLLOW 0
+-#endif
+ 
+ struct stat;
+ 
+--- a/src/lib/sandbox/sandbox.c
++++ b/src/lib/sandbox/sandbox.c
+@@ -90,6 +90,8 @@
+ #include <execinfo.h>
+ #endif
+ 
++#define O_NOFOLLOW 0
++
+ /**
+  * Linux 32 bit definitions
+  */

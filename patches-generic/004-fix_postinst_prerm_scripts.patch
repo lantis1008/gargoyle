@@ -1,0 +1,94 @@
+--- a/package/base-files/files/lib/functions.sh
++++ b/package/base-files/files/lib/functions.sh
+@@ -213,16 +213,19 @@ default_prerm() {
+ 	local root="${IPKG_INSTROOT}"
+ 	[ -z "$pkgname" ] && local pkgname="$(basename ${1%.*})"
+ 	local ret=0
++	local pkg_prerm pkg_list
+ 	local filelist="${root}/usr/lib/opkg/info/${pkgname}.list"
+ 	[ -f "$root/lib/apk/packages/${pkgname}.list" ] && filelist="$root/lib/apk/packages/${pkgname}.list"
+ 
+-	if [ -f "$root/usr/lib/opkg/info/${pkgname}.prerm-pkg" ]; then
+-		( . "$root/usr/lib/opkg/info/${pkgname}.prerm-pkg" )
++	pkg_prerm="${1}-pkg"
++	pkg_list=$(echo "${1}" | sed 's/prerm$/list/g')
++	if [ -f "$pkg_prerm" ]; then
++		( . "$pkg_prerm" )
+ 		ret=$?
+ 	fi
+ 
+ 	local shell="$(command -v bash)"
+-	for i in $(grep -s "^/etc/init.d/" "$filelist"); do
++	for i in $(grep -s "/etc/init.d/" "${pkg_list}"); do
+ 		if [ -n "$root" ]; then
+ 			${shell:-/bin/sh} "$root/etc/rc.common" "$root$i" disable
+ 		else
+@@ -238,7 +241,8 @@ default_prerm() {
+ 
+ add_group_and_user() {
+ 	[ -z "$pkgname" ] && local pkgname="$(basename ${1%.*})"
+-	local rusers="$(sed -ne 's/^Require-User: *//p' $root/usr/lib/opkg/info/${pkgname}.control 2>/dev/null)"
++	local pkg_control="$1"
++	local rusers="$(sed -ne 's/^Require-User: *//p' "${pkg_control}" 2>/dev/null)"
+ 	if [ -f "$root/lib/apk/packages/${pkgname}.rusers" ]; then
+ 		local rusers="$(cat $root/lib/apk/packages/${pkgname}.rusers)"
+ 	fi
+@@ -347,9 +351,18 @@ default_postinst() {
+ 	[ -f "$root/lib/apk/packages/${pkgname}.list" ] && filelist="$root/lib/apk/packages/${pkgname}.list"
+ 	local ret=0
+ 
++	local pkg_postinst="${1}"-pkg
++	local pkg_control=$(echo "${1}" | sed 's/postinst$/control/g')
++	local pkg_list=$(echo "${1}" | sed 's/postinst$/list/g')
++	if [ -n "${root}" ] ; then
++		pkg_postinst="${root}/usr/lib/opkg/info/${pkgname}.postinst-pkg"
++		pkg_control="${root}/usr/lib/opkg/info/${pkgname}.control"
++		pkg_list="${root}/usr/lib/opkg/info/${pkgname}.list"
++	fi
++
+ 	if [ -e "${root}/usr/lib/opkg/info/${pkgname}.list" ]; then
+ 		filelist="${root}/usr/lib/opkg/info/${pkgname}.list"
+-		add_group_and_user "${pkgname}"
++		add_group_and_user "${pkg_control}"
+ 	fi
+ 
+ 	if [ -e "${root}/lib/apk/packages/${pkgname}.list" ]; then
+@@ -363,17 +376,17 @@ default_postinst() {
+ 	fi
+ 
+ 	if [ -z "$root" ]; then
+-		if grep -m1 -q -s "^/etc/modules.d/" "$filelist"; then
++		if grep -m1 -q -s "/etc/modules.d/" "${pkg_list}"; then
+ 			kmodloader
+ 		fi
+ 
+-		if grep -m1 -q -s "^/etc/sysctl.d/" "$filelist"; then
++		if grep -m1 -q -s "/etc/sysctl.d/" "${pkg_list}"; then
+ 			/etc/init.d/sysctl restart
+ 		fi
+ 
+-		if grep -m1 -q -s "^/etc/uci-defaults/" "$filelist"; then
++		if grep -m1 -q -s "/etc/uci-defaults/" "${pkg_list}"; then
+ 			[ -d /tmp/.uci ] || mkdir -p /tmp/.uci
+-			for i in $(grep -s "^/etc/uci-defaults/" "$filelist"); do
++			for i in $(grep -s "/etc/uci-defaults/" "${pkg_list}"); do
+ 				( [ -f "$i" ] && cd "$(dirname $i)" && . "$i" ) && rm -f "$i"
+ 			done
+ 			uci commit
+@@ -382,13 +395,13 @@ default_postinst() {
+ 		rm -f /tmp/luci-indexcache
+ 	fi
+ 
+-	if [ -f "$root/usr/lib/opkg/info/${pkgname}.postinst-pkg" ]; then
+-		( . "$root/usr/lib/opkg/info/${pkgname}.postinst-pkg" )
++	if [ -f "$pkg_postinst" ]; then
++		( . "$pkg_postinst" )
+ 		ret=$?
+ 	fi
+ 
+ 	local shell="$(command -v bash)"
+-	for i in $(grep -s "^/etc/init.d/" "$filelist"); do
++	for i in $(grep -s "/etc/init.d/" "${pkg_list}"); do
+ 		if [ -n "$root" ]; then
+ 			${shell:-/bin/sh} "$root/etc/rc.common" "$root$i" enable
+ 		else
