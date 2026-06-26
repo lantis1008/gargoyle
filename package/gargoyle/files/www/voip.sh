@@ -20,7 +20,6 @@
 
 	echo "var rebootingMsg = \"<%~ voip.Rbtng %>\";"
 %>
-	var uci = uciOriginal.clone();
 //-->
 </script>
 
