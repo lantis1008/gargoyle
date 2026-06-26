@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guest Wi-Fi</title>
+<style>
+body { font-family: sans-serif; background:#f4f4f4; display:flex; align-items:center;
+       justify-content:center; min-height:100vh; margin:0; }
+.card { background:#fff; border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,.15);
+        padding:2rem; max-width:380px; width:100%; text-align:center; }
+h1   { margin:0 0 .5rem; font-size:1.4rem; }
+p    { color:#555; margin:.5rem 0 1.5rem; font-size:.9rem; }
+input[type=password] { width:100%; box-sizing:border-box; padding:.6rem .8rem;
+                        border:1px solid #ccc; border-radius:4px; font-size:1rem;
+                        margin-bottom:1rem; }
+button { width:100%; padding:.7rem; background:#2196F3; color:#fff; border:none;
+         border-radius:4px; font-size:1rem; cursor:pointer; }
+button:hover { background:#1976D2; }
+.err { color:#c00; font-size:.85rem; display:none; margin-top:.5rem; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1 id="gw-name">Guest Wi-Fi</h1>
+  <p id="gw-msg">Please accept the terms of use to get online.</p>
+
+  <form id="portal-form" action="/portal/auth.sh" method="POST">
+    <input type="hidden" name="orig_url" id="orig_url">
+    <!-- Password field shown only when auth_mode=password -->
+    <div id="pw-field" style="display:none">
+      <input type="password" name="password" id="password" placeholder="Wi-Fi password">
+    </div>
+    <button type="submit" id="btn-connect">Connect</button>
+    <div class="err" id="err-msg">Incorrect password. Please try again.</div>
+  </form>
+</div>
+
+<script>
+(function() {
+	// Attempt to read gateway name injected by auth.sh CGI,
+	// falling back to the placeholder above.
+	if (window.PORTAL_GATEWAY_NAME) {
+		document.getElementById('gw-name').textContent = window.PORTAL_GATEWAY_NAME;
+	}
+	if (window.PORTAL_AUTH_MODE === 'password') {
+		document.getElementById('pw-field').style.display = '';
+	}
+	if (window.PORTAL_MESSAGE) {
+		document.getElementById('gw-msg').textContent = window.PORTAL_MESSAGE;
+	}
+	if (window.PORTAL_AUTH_FAILED) {
+		var e = document.getElementById('err-msg');
+		e.style.display = '';
+	}
+	// Store the URL the client was originally trying to reach
+	var params = new URLSearchParams(window.location.search);
+	var orig = params.get('orig') || '';
+	document.getElementById('orig_url').value = orig;
+})();
+</script>
+</body>
+</html>
