@@ -13,15 +13,15 @@ function resetData()
 	var hwLabel = document.getElementById("hw_model_label");
 	if(vlanHwModel === "dsa")
 	{
-		hwLabel.textContent = pageStr.vlan.HWDsa;
+		hwLabel.textContent = vlanStr.HWDsa;
 	}
 	else if(vlanHwModel === "swconfig")
 	{
-		hwLabel.textContent = pageStr.vlan.HWSwconfig;
+		hwLabel.textContent = vlanStr.HWSwconfig;
 	}
 	else
 	{
-		hwLabel.textContent = pageStr.vlan.HWNone;
+		hwLabel.textContent = vlanStr.HWNone;
 	}
 
 	var wanLabel = document.getElementById("wan_vlan_label");
@@ -31,11 +31,11 @@ function resetData()
 	}
 	else
 	{
-		wanLabel.textContent = pageStr.vlan.WanNoVlan;
+		wanLabel.textContent = vlanStr.WanNoVlan;
 	}
 
 	document.getElementById("bridge_vlan_filter_label").textContent =
-		bridgeVlanFiltering === "1" ? pageStr.vlan.Enabled : pageStr.vlan.Disabled;
+		bridgeVlanFiltering === "1" ? vlanStr.Enabled : vlanStr.Disabled;
 
 	if(vlanInterfaces.length > 0)
 	{
@@ -49,7 +49,7 @@ function resetData()
 		}
 		var container = document.getElementById("vlan_iface_table_container");
 		container.innerHTML = "";
-		var table = createTable([pageStr.vlan.IfaceName, pageStr.vlan.IfaceDev], tableData, "vlan_iface_table", false, false, false);
+		var table = createTable([vlanStr.IfaceName, vlanStr.IfaceDev], tableData, "vlan_iface_table", false, false, false);
 		container.appendChild(table);
 	}
 }

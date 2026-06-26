@@ -55,7 +55,6 @@
 			printf 'vlanInterfaces.push({name:"%s", device:"%s"});\n' "$iface" "$dev"
 	done
 %>
-	var uci = uciOriginal.clone();
 //-->
 </script>
 
