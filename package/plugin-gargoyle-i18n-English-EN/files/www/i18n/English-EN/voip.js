@@ -1,4 +1,4 @@
-/*
+﻿/*
  * UTF-8 (with BOM) English-EN text strings for voip.sh html elements
  */
 
