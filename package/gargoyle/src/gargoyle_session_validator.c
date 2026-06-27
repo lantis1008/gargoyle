@@ -75,7 +75,7 @@ int main (int argc, char **argv)
 				break;
 			case 'b':
 			case 'B':
-				read = sscanf(optarg, "%ld", &browser_time);
+				read = sscanf(optarg, "%lu", &browser_time);
 				browser_time = read > 0 ? browser_time : 0;
 
 				break;

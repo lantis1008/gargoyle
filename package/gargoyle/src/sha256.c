@@ -294,6 +294,11 @@ char* get_sha256_hash_hex_str(const char* unhashed)
 	char next_hex[3];
 	int index =0;
 
+	if (hashed_hex == NULL)
+	{
+		free(hashed);
+		return NULL;
+	}
 	hashed_hex[0] = '\0';
 	for(index=0; index < 32; index++)
 	{
