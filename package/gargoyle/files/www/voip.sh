@@ -12,7 +12,7 @@
 <script>
 <!--
 <%
-	if grep -qsE '^(nf_nat_sip|nf_conntrack_sip)' /etc/modules.d/* 2>/dev/null ; then
+	if grep -qsE '^(nf_nat_sip|nf_conntrack_sip)$' /etc/modules.d/sip-alg 2>/dev/null ; then
 		echo "var sipAlgEnabled = true;"
 	else
 		echo "var sipAlgEnabled = false;"

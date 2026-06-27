@@ -23,10 +23,8 @@ function saveChanges()
 	var enabled = document.getElementById("sip_alg_enabled").checked;
 	var commands = [];
 
-	// Clear any existing SIP conntrack helper module entries across all modules.d files
-	commands.push("for f in /etc/modules.d/*; do sed -i '/^nf_nat_sip$/d; /^nf_conntrack_sip$/d' \"$f\"; done");
-	commands.push("rm -f /etc/modules.d/sip-alg");
-
+	// Manage only our own /etc/modules.d/sip-alg file -- never edit other
+	// packages' module lists. Enabling overwrites it; disabling removes it.
 	if(enabled)
 	{
 		commands.push("printf 'nf_conntrack_sip\\nnf_nat_sip\\n' > /etc/modules.d/sip-alg");
@@ -34,6 +32,7 @@ function saveChanges()
 	}
 	else
 	{
+		commands.push("rm -f /etc/modules.d/sip-alg");
 		commands.push("modprobe -r nf_nat_sip nf_conntrack_sip 2>/dev/null; true");
 	}
 
