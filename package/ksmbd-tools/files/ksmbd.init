@@ -106,6 +106,7 @@ smb_add_share() {
 
 	config_get_sane name $1 name
 	config_get_sane path $1 path
+	path="$(readlink -f "$path" 2>/dev/null || echo "$path")"
 	config_get_sane comment $1 comment
 	#config_get_sane users $1 users
 	config_get_sane create_mask $1 create_mask
