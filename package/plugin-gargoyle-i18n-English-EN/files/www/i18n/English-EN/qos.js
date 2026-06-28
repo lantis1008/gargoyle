@@ -113,3 +113,14 @@ qosStr.DBSect="QoS Download Bandwidth Distribution";
 qosStr.uTFrm="Upload Time Frame";
 qosStr.dTFrm="Download Time Frame";
 
+//known device groups
+qosStr.DevGroup="Device Group";
+
+qosStr.CakeMode="Use Simple Mode (CAKE) instead of Advanced (HFSC)";
+qosStr.CakeAbout="Simple mode uses CAKE, a modern queuing algorithm that automatically prevents bufferbloat and fairly shares bandwidth between all devices and flows. No manual class configuration is needed -- just set your bandwidth and enable. CAKE is recommended for most users.";
+qosStr.CakeOverhead="Link overhead compensation";
+qosStr.CakeOHNone="None (direct Ethernet)";
+qosStr.CakeTins="CAKE automatically prioritises traffic into four tiers: Voice (VoIP, gaming), Video (streaming), Best Effort (web), and Bulk (downloads, torrents). Apps that mark their own traffic are classified automatically.";
+qosStr.CakeStatus="CAKE status";
+qosStr.CakeActive="Active";
+qosStr.CakeInactive="Inactive (restart QoS to apply)";

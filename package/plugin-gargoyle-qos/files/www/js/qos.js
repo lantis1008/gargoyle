@@ -21,6 +21,21 @@ function saveChanges()
 	var bwmonCleanCommand = bwmonCleanCommand + "if [ -d /tmp/data/bwmon/ ] ; then rm /tmp/data/bwmon/qos-" + direction + "-* >/dev/null 2>&1 ; fi ;\n";
 
 
+	var isCake = document.getElementById("cake_enabled").checked;
+	uci.set("qos_gargoyle", direction, "cake_enabled", isCake ? "1" : "0");
+	if(isCake)
+	{
+		var overhead = document.getElementById("cake_overhead").value;
+		if(overhead != "none")
+		{
+			uci.set("qos_gargoyle", direction, "cake_overhead", overhead);
+		}
+		else
+		{
+			uci.remove("qos_gargoyle", direction, "cake_overhead");
+		}
+	}
+
 	//Save the setting of the qos_monenable flag
 	if (direction == "download")
 	{
@@ -54,7 +69,7 @@ function saveChanges()
 	var switchingFullQosEnabled = (fullQosWillBeEnabled != qosEnabled);
 
 	//Is the user requesting disable of this direction of QoS?
-	if(disabled)
+	if(disabled && !isCake)
 	{
 		//If this page was enabled before and the other was not then stop and disable QoS
 		if(qosEnabled && alternateBandwidth == "" )
@@ -82,6 +97,21 @@ function saveChanges()
 	else if(validateNumeric(document.getElementById("total_bandwidth").value) != 0)
 	{
 		errors=qosStr.TotErr;
+	}
+	else if(isCake)
+	{
+		qosEnabled = true;
+		uci.set("gargoyle", "status", "qos", "300");
+		uci.set("qos_gargoyle", direction, "total_bandwidth", document.getElementById("total_bandwidth").value);
+		if(switchingFullQosEnabled && qosQuotasExist())
+		{
+			commands = uci.getScriptCommands(uciOriginal) + "\n/etc/init.d/qos_gargoyle enable ;\nsh /usr/lib/gargoyle/restart_firewall.sh ;\n";
+		}
+		else
+		{
+			commands = "\n/etc/init.d/qos_gargoyle start ;\n/etc/init.d/qos_gargoyle enable ;\n";
+			commands = uci.getScriptCommands(uciOriginal) + "\n" + commands + stopbwmon + bwmonCleanCommand + startbwmon;
+		}
 	}
 	else
 	{
@@ -560,6 +590,10 @@ function resetData()
 
 	}
 
+	document.getElementById("cake_enabled").checked = cakeEnabled;
+	document.getElementById("cake_overhead").value = cakeOverhead;
+	setCakeMode();
+
 	setQosEnabled();
 
 	//Startup the dynamic screen updates.
@@ -642,6 +676,29 @@ function setQosEnabled()
 	resetServiceClassControls();
 }
 
+function setCakeMode()
+{
+	var isCake = document.getElementById("cake_enabled").checked;
+	var hfscPanels = ["qos_class_table_container", "qos_rule_table_container",
+	                  "add_class_container", "add_rule_container",
+	                  "default_class_label", "default_class",
+	                  "qos_monitor_container", "acc_panel"];
+	for(var i = 0; i < hfscPanels.length; i++)
+	{
+		var el = document.getElementById(hfscPanels[i]);
+		if(el) { el.style.display = isCake ? "none" : ""; }
+	}
+	var cakePanel = document.getElementById("cake_options_panel");
+	if(cakePanel) { cakePanel.style.display = isCake ? "" : "none"; }
+	var cakeStatusPanel = document.getElementById("cake_status_panel");
+	if(cakeStatusPanel) { cakeStatusPanel.style.display = isCake ? "" : "none"; }
+	// Bandwidth field must always be editable in CAKE mode (used for shaper bandwidth)
+	if(isCake)
+	{
+		setElementEnabled(document.getElementById("total_bandwidth"), true, "");
+	}
+}
+
 function addClassificationRule()
 {
 	errors = proofreadClassificationRule();
@@ -651,6 +708,7 @@ function addClassificationRule()
 	}
 	else
 	{
+		syncGroupIpFields();
 
 		addRuleMatchControls = ["ip_family", "source_ip", "source_port", "dest_ip", "dest_port", "max_pktsize", "min_pktsize", "transport_protocol", "connbytes_kb", "app_protocol"];
 		displayList = [UI.IPFam+": $", qosStr.Src+": $", qosStr.SrcP+": $", qosStr.Dst+": $", qosStr.DstP+": $", qosStr.MaxPktLen+": $ "+UI.byt, qosStr.MinPktLen+": $ "+UI.byt, qosStr.TrProto+": $", qosStr.Connb+": $ "+UI.KBy, qosStr.APro+": $"];
@@ -695,6 +753,7 @@ function proofreadClassificationRule()
 	alwaysValid = function(text){return 0;};
 	validateQOSIPRangeAndFamily = function(ipstr)
 	{
+		if(ipstr.indexOf("GROUP:") === 0) { return 0; }
 		var retVal = 0;
 		var ipfam = getIPFamily(ipstr);
 		var selfam = document.getElementById("ip_family").value;
@@ -748,6 +807,16 @@ function resetRuleControls()
 		checkbox.checked =false;
 		enableAssociatedField( checkbox, ruleControlIds[ruleControlIndex], "");
 	}
+
+	["source", "dest"].forEach(function(w)
+	{
+		var typeEl = document.getElementById(w + "_ip_type");
+		typeEl.value = "ip";
+		typeEl.disabled = true;
+		document.getElementById(w + "_group_select").disabled = true;
+		document.getElementById(w + "_ip_text_container").style.display = "";
+		document.getElementById(w + "_group_container").style.display = "none";
+	});
 }
 
 function addServiceClass()
@@ -906,6 +975,7 @@ function editRuleTableRow(editRuleWindowRow)
 	}
 	else
 	{
+		syncGroupIpFields();
 		addRuleMatchControls = ["ip_family", "source_ip", "source_port", "dest_ip", "dest_port", "max_pktsize", "min_pktsize", "transport_protocol", "connbytes_kb", "app_protocol"];
 		displayList = [UI.IPFam+": $", qosStr.Src+": $", qosStr.SrcP+": $", qosStr.Dst+": $", qosStr.DstP+": $",  qosStr.MaxPktLen+": $ "+UI.byt, qosStr.MinPktLen+": $ "+UI.byt, qosStr.TrProto+": $", qosStr.Connb+": $ "+UI.KBy, qosStr.APro+": $"];
 		ruleText = ""
@@ -1098,19 +1168,17 @@ function updatetc()
 	{
 		updateInProgress = true;
 
-		var commands="tc -s class show dev ";
+		var cakeActive = document.getElementById("cake_enabled") && document.getElementById("cake_enabled").checked;
+		var tcDev = direction == "download" ? "ifb0" : currentWanName;
+		var commands;
 
-		if (direction == "download")
+		if(cakeActive)
 		{
-			commands = commands + "ifb0";
+			commands = "tc qdisc show dev " + tcDev;
 		}
 		else
 		{
-			/*
-			 * NOTE: This NEEDS to be "currentWanName" variable NOT "currentWanIf" Variable!!!
-			 * If this doesn't work the problem is in gargoyle_header_footer utility, not here
-			 */
-			commands = commands + currentWanName;
+			commands = "tc -s class show dev " + tcDev;
 		}
 
 		var param = getParameterDefinition("commands", commands) + "&" + getParameterDefinition("hash", document.cookie.replace(/^.*hash=/,"").replace(/[\t ;]+.*$/, ""));
@@ -1119,6 +1187,24 @@ function updatetc()
 		{
 			if(req.readyState == 4)
 			{
+				if(cakeActive)
+				{
+					var statusEl = document.getElementById("cake_active_status");
+					if(statusEl)
+					{
+						if(req.responseText.indexOf("cake") >= 0)
+						{
+							statusEl.innerHTML = "<span style='color:green;font-weight:bold;'>Active</span>";
+						}
+						else
+						{
+							statusEl.innerHTML = "<span style='color:red;'>Inactive &mdash; restart QoS to apply</span>";
+						}
+					}
+					updateInProgress = false;
+					return;
+				}
+
 				/*Only match leaf classes and class with 2 digit class numbers since on the upload side class 1:127 is only for qosmon*/
 				var lines = req.responseText.match(/hfsc\s1:[0-9]{1,2}\s.+leaf.+\n.+Sent\s[0-9]+/g);
 				var d=new Date();
@@ -1240,8 +1326,54 @@ function resetFairLinkLimit()
 	runAjax("POST", "utility/run_commands.sh", param, stateChangeFunction);
 }
 
+function populateQosGroupSelects()
+{
+	["source_group_select", "dest_group_select"].forEach(function(selId)
+	{
+		var sel = document.getElementById(selId);
+		if(!sel) { return; }
+		while(sel.firstChild) { sel.removeChild(sel.firstChild); }
+		var gi;
+		for(gi = 0; gi < knownDeviceGroups.length; gi++)
+		{
+			var opt = document.createElement("option");
+			opt.value = knownDeviceGroups[gi];
+			opt.textContent = knownDeviceGroups[gi];
+			sel.appendChild(opt);
+		}
+	});
+}
+
+function syncGroupIpFields()
+{
+	["source", "dest"].forEach(function(w)
+	{
+		var typeEl = document.getElementById(w + "_ip_type");
+		if(!typeEl.disabled && typeEl.value == "group")
+		{
+			var sel = document.getElementById(w + "_group_select");
+			document.getElementById(w + "_ip").value = sel.options.length > 0 ? "GROUP:" + sel.value : "";
+		}
+	});
+}
+
+function updateRuleIpMode(which)
+{
+	var checkEl = document.getElementById("use_" + which + "_ip");
+	var enabled = checkEl.checked && !checkEl.disabled;
+	var typeEl = document.getElementById(which + "_ip_type");
+	typeEl.disabled = !enabled;
+	var mode = typeEl.value;
+	var ipField = document.getElementById(which + "_ip");
+	ipField.disabled = !(enabled && mode == "ip");
+	document.getElementById(which + "_group_select").disabled = !(enabled && mode == "group");
+	document.getElementById(which + "_ip_text_container").style.display = (enabled && mode == "ip") ? "" : "none";
+	document.getElementById(which + "_group_container").style.display = (enabled && mode == "group") ? "" : "none";
+}
+
 function addRuleModal()
 {
+	populateQosGroupSelects();
 	modalButtons = [
 		{"title" : UI.Add, "classes" : "btn btn-primary", "function" : addClassificationRule},
 		"defaultDismiss"
@@ -1256,6 +1388,7 @@ function addRuleModal()
 
 function editRuleModal(triggerEl)
 {
+	populateQosGroupSelects();
 	editRow=triggerEl.parentNode.parentNode;
 	modalButtons = [
 		{"title" : UI.CApplyChanges, "classes" : "btn btn-primary", "function" : function(){editRuleTableRow(editRow);}},
@@ -1312,6 +1445,23 @@ function editRuleModal(triggerEl)
 			enableAssociatedField(ruleControlCheckbox, ruleControlId, "", document);
 		}
 	}
+
+	// Restore group mode for source/dest if criteria contains GROUP: prefix
+	["source", "dest"].forEach(function(w)
+	{
+		var ipField = document.getElementById(w + "_ip");
+		if(ipField.value.indexOf("GROUP:") === 0)
+		{
+			var groupName = ipField.value.substring(6);
+			ipField.value = "";
+			ipField.disabled = true;
+			var typeEl = document.getElementById(w + "_ip_type");
+			typeEl.value = "group";
+			setSelectedValue(w + "_group_select", groupName, document);
+			updateRuleIpMode(w);
+		}
+	});
+
 	setSelectedText("classification", editRow.childNodes[1].firstChild.data, document);
 	updateIPControls(document.getElementById("ip_family"));
 
@@ -1418,6 +1568,8 @@ function updateIPControls(triggerEl)
 		}
 		enableAssociatedField(checkEl,elArr[x], '');
 	}
+	updateRuleIpMode('source');
+	updateRuleIpMode('dest');
 }
 
 function proofreadQOSIPRange(triggerEl)
