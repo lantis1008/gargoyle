@@ -21,6 +21,19 @@
 	else
 		echo "var qosEnabled = false;"
 	fi
+
+	echo "var knownDeviceGroups = [];"
+	uci show dhcp 2>/dev/null | grep '^dhcp\.[^.]*\.group=' | sed "s/^[^=]*=//; s/'//g" | sort -u | grep -v '^$' | while read grp ; do
+		escaped=$(printf '%s' "$grp" | sed 's/\\/\\\\/g; s/"/\\"/g')
+		printf 'knownDeviceGroups.push("%s");\n' "$escaped"
+	done
+
+	cake_enabled=$(uci get qos_gargoyle.upload.cake_enabled 2>/dev/null)
+	echo "var cakeEnabled = $([ "$cake_enabled" = "1" ] && echo "true" || echo "false");"
+	cake_overhead=$(uci get qos_gargoyle.upload.cake_overhead 2>/dev/null)
+	echo "var cakeOverhead = \"${cake_overhead:-none}\";"
+	wan_if=$(uci get network.wan.device 2>/dev/null || uci get network.wan.ifname 2>/dev/null)
+	cake_active=$(tc qdisc show dev "${wan_if:-eth1}" 2>/dev/null | grep -c "^qdisc cake" || echo 0)
 %>
 
 //-->
@@ -45,6 +58,30 @@
 					<p class="col-xs-12"><%~ QoSAbout %></p>
 				</div>
 				<div class="internal_divider"></div>
+
+				<div class="row form-group" id="cake_mode_container">
+					<span class="col-xs-12">
+						<input type="checkbox" id="cake_enabled" onclick="setCakeMode()" />
+						<label for="cake_enabled"><%~ CakeMode %></label>
+					</span>
+				</div>
+
+				<div id="cake_options_panel" class="row form-group">
+					<label class="col-xs-5" for="cake_overhead"><%~ CakeOverhead %>:</label>
+					<span class="col-xs-7">
+						<select class="form-control" id="cake_overhead">
+							<option value="none"><%~ CakeOHNone %></option>
+							<option value="ethernet">Ethernet</option>
+							<option value="pppoe">PPPoE</option>
+							<option value="vdsl">VDSL/PTM</option>
+						</select>
+					</span>
+				</div>
+
+				<div id="cake_status_panel" class="row form-group" <% [ "$cake_enabled" != "1" ] && printf 'style="display:none;"' %>>
+					<label class="col-xs-5">CAKE status:</label>
+					<span class="col-xs-7" id="cake_active_status"><% if [ "${cake_active:-0}" -gt 0 ] 2>/dev/null; then printf '<span style="color:green;font-weight:bold;">Active</span>'; else printf '<span style="color:orange;">Configured &mdash; restart QoS to activate</span>'; fi %></span>
+				</div>
 
 				<div id="qos_rule_table_container" class="bottom_gap table-responsive"></div>
 				<div class="row form-group">
