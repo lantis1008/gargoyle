@@ -1203,6 +1203,17 @@ function proofreadAll()
 			// Additional checks
 			// port clash? ip clash?
 		}
+
+		// Optional IPv6: if either field is set, both must be valid (v6 address
+		// + prefix length 1-128). Leaving both blank keeps the server IPv4-only.
+		var ip6 = document.getElementById(prefix + "ip6").value;
+		var mask6 = document.getElementById(prefix + "mask6").value;
+		if(ip6 != "" || mask6 != "")
+		{
+			if(validateIP6(ip6) != 0) { errors.push(wgStr.wgErrIP6); }
+			var m6 = mask6 * 1;
+			if(mask6 == "" || isNaN(m6) || m6 < 1 || m6 > 128) { errors.push(wgStr.wgErrMask6); }
+		}
 	}
 	if(getSelectedValue("wireguard_config") == "client")
 	{

@@ -83,7 +83,7 @@
 
 				<div id="wireguard_server_ip6_container" class="row form-group">
 					<label class="col-xs-5" for='wireguard_server_ip6' id='wireguard_server_ip6_label'><%~ wgInIP6 %>:</label>
-					<span class="col-xs-7"><input type='text' class="form-control" name='wireguard_server_ip6' id='wireguard_server_ip6' placeholder='optional' size='30' maxlength='45' /></span>
+					<span class="col-xs-7"><input type='text' class="form-control" name='wireguard_server_ip6' id='wireguard_server_ip6' oninput='proofreadIp6(this)' placeholder='optional' size='30' maxlength='45' /></span>
 				</div>
 
 				<div id="wireguard_server_mask6_container" class="row form-group">
