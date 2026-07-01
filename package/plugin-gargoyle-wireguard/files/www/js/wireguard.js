@@ -642,6 +642,12 @@ function setAcDocumentFromUci(srcUci, id, dupeCn, serverInternalIp)
 	document.getElementById("wireguard_allowed_client_subnet_ip").value = subnetIp;
 	document.getElementById("wireguard_allowed_client_subnet_mask").value = subnetMask;
 
+	// Optional IPv6 subnet behind the client (blank = none, even when a v4 subnet is set)
+	var subnetIp6   = srcUci.get("wireguard_gargoyle", id, "subnet_ip6")
+	var subnetMask6 = srcUci.get("wireguard_gargoyle", id, "subnet_mask6")
+	document.getElementById("wireguard_allowed_client_subnet_ip6").value = subnetIp6;
+	document.getElementById("wireguard_allowed_client_subnet_mask6").value = subnetMask6;
+
 	var pubkey = srcUci.get("wireguard_gargoyle", id, "public_key")
 	var privkey = srcUci.get("wireguard_gargoyle", id, "private_key")
 	setSelectedValue("wireguard_allowed_client_have_privkey", (privkey != "" ? "true" : "false"), document)
@@ -849,6 +855,8 @@ function setAllowedClientVisibility()
 	var selectedVis = document.getElementById("wireguard_allowed_client_have_subnet_container").style.display == "none" ? "none" : "block"
 	document.getElementById("wireguard_allowed_client_subnet_ip_container").style.display = getSelectedValue("wireguard_allowed_client_have_subnet", document) == "true" ? selectedVis : "none";
 	document.getElementById("wireguard_allowed_client_subnet_mask_container").style.display = getSelectedValue("wireguard_allowed_client_have_subnet", document) == "true" ? selectedVis : "none";
+	document.getElementById("wireguard_allowed_client_subnet_ip6_container").style.display = getSelectedValue("wireguard_allowed_client_have_subnet", document) == "true" ? selectedVis : "none";
+	document.getElementById("wireguard_allowed_client_subnet_mask6_container").style.display = getSelectedValue("wireguard_allowed_client_have_subnet", document) == "true" ? selectedVis : "none";
 
 	var selectedVis = document.getElementById("wireguard_allowed_client_have_privkey_container").style.display == "none" ? "none" : "block"
 	document.getElementById("wireguard_allowed_client_privkey_container").style.display = getSelectedValue("wireguard_allowed_client_have_privkey", document) == "true" ? selectedVis : "none";
@@ -899,6 +907,23 @@ function validateAc(internalServerIp, internalServerMask)
 		var subnetIpEl   = document.getElementById(prefix + "subnet_ip")
 		var subnetMaskEl = document.getElementById(prefix + "subnet_mask")
 		subnetIpEl.value = applyMask(subnetIpEl.value, subnetMaskEl.value)
+	}
+	if(errors.length == 0 && document.getElementById(prefix + "subnet_ip6_container").style.display != "none")
+	{
+		var subnetIp6   = document.getElementById(prefix + "subnet_ip6").value
+		var subnetMask6 = document.getElementById(prefix + "subnet_mask6").value
+		if(subnetIp6 != "" || subnetMask6 != "")
+		{
+			if(validateIP6(subnetIp6) != 0)
+			{
+				errors.push(wgStr.wgErrACIP6)
+			}
+			var m6 = subnetMask6 * 1
+			if(subnetMask6 == "" || isNaN(m6) || m6 < 1 || m6 > 128)
+			{
+				errors.push(wgStr.wgErrMask6)
+			}
+		}
 	}
 
 	return errors;
@@ -954,15 +979,29 @@ function setAcUciFromDocument(id)
 		uci.remove(pkg, id, "ip")
 	}
 	uci.set(pkg, id, "remote", remote)
+	var subnetIp6   = document.getElementById("wireguard_allowed_client_subnet_ip6").value
+	var subnetMask6 = document.getElementById("wireguard_allowed_client_subnet_mask6").value
 	if(haveSubnet)
 	{
 		uci.set(pkg, id, "subnet_ip",   subnetIp)
 		uci.set(pkg, id, "subnet_mask", subnetMask)
+		if(subnetIp6 != "" && subnetMask6 != "")
+		{
+			uci.set(pkg, id, "subnet_ip6",   subnetIp6)
+			uci.set(pkg, id, "subnet_mask6", subnetMask6)
+		}
+		else
+		{
+			uci.remove(pkg, id, "subnet_ip6")
+			uci.remove(pkg, id, "subnet_mask6")
+		}
 	}
 	else
 	{
 		uci.remove(pkg, id, "subnet_ip")
 		uci.remove(pkg, id, "subnet_mask")
+		uci.remove(pkg, id, "subnet_ip6")
+		uci.remove(pkg, id, "subnet_mask6")
 	}
 	uci.set(pkg, id, "public_key", pubkey)
 	if(havePrivkey)

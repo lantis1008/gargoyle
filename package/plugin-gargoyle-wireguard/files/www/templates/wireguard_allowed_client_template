@@ -70,6 +70,18 @@
 					</span>
 					<span style="clear:both"></span>
 				</div>
+				<div id="wireguard_allowed_client_subnet_ip6_container" class="row form-group" >
+					<span class="col-xs-7 col-xs-offset-5">
+						<input type='text' class="form-control" id='wireguard_allowed_client_subnet_ip6' size='30' placeholder='optional' oninput='proofreadIp6(this)' />&nbsp;<em><%~ wgSubIP6 %></em>
+					</span>
+					<span style="clear:both"></span>
+				</div>
+				<div id="wireguard_allowed_client_subnet_mask6_container" class="row form-group" >
+					<span class="col-xs-7 col-xs-offset-5">
+						<input type='text' class="form-control"  id='wireguard_allowed_client_subnet_mask6' size='30' placeholder='64' />&nbsp;<em><%~ wgSubM6 %></em>
+					</span>
+					<span style="clear:both"></span>
+				</div>
 
 				<input class="form-control" style="display:none" id="wireguard_allowed_client_initial_id" />
 				<input class="form-control" style="display:none" id="wireguard_allowed_client_default_id" />
