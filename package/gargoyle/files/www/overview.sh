@@ -72,10 +72,10 @@
 	wan_dev_speed=$(. /usr/lib/gargoyle/ethportinfo.sh && get_status_speed "$wan_dev")
 	echo "var wan_port='$wan_dev_speed';"
 
-	if [ -e /var/run/pppoe-wan.pid ]; then
-		deltatime=$((`date -r /var/run/crond.pid +%s`-`date -r /var/run/pppoe-wan.pid +%s`))
+	if [ -e /var/run/pppd/pppoe-wan.pid ]; then
+		deltatime=$((`date -r /var/run/crond.pid +%s`-`date -r /var/run/pppd/pppoe-wan.pid +%s`))
 		[ $deltatime -lt 60 ] && deltatime=0 || let deltatime-=30
-		echo "var pppoeUptime=\""$((`date +%s`-`date -r /var/run/pppoe-wan.pid +%s`-$deltatime))"\";"
+		echo "var pppoeUptime=\""$((`date +%s`-`date -r /var/run/pppd/pppoe-wan.pid +%s`-$deltatime))"\";"
 	fi
 
 	echo "var wifi_status = new Array();"
