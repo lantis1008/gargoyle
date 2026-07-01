@@ -23,6 +23,8 @@ function resetData()
 
 	document.getElementById("wireguard_server_ip").value = getServerVarWithDefault("ip","10.64.0.1");
 	document.getElementById("wireguard_server_mask").value = getServerVarWithDefault("submask","255.255.255.0");
+	document.getElementById("wireguard_server_ip6").value = getServerVarWithDefault("ip6","");
+	document.getElementById("wireguard_server_mask6").value = getServerVarWithDefault("submask6","");
 	document.getElementById("wireguard_server_port").value = getServerVarWithDefault("port","51820");
 	setSelectedValue("wireguard_server_client_to_client",getServerVarWithDefault("c2c","true"));
 	setSelectedValue("wireguard_server_subnet_access",getServerVarWithDefault("lan_access","true"));
@@ -213,7 +215,10 @@ function saveChanges()
 			}
 		}
 
-		configureNetwork = function(enabled,wgPrivKey,wgIP,wgPort)
+		// wgAddrs may be a single CIDR string (client mode) or an array of CIDRs
+		// (server mode, dual-stack: [v4, v6]). network.wg0.addresses is a list, so
+		// dual-stack is just more entries.
+		configureNetwork = function(enabled,wgPrivKey,wgAddrs,wgPort)
 		{
 			if(enabled)
 			{
@@ -222,7 +227,7 @@ function saveChanges()
 				uci.set("network", "wg0", "private_key", wgPrivKey)
 				uci.set("network", "wg0", "listen_port",   wgPort)
 				uci.createListOption("network", "wg0", "addresses", true)
-				uci.set("network", "wg0", "addresses",   [wgIP])
+				uci.set("network", "wg0", "addresses",   (typeof wgAddrs == "string" ? [wgAddrs] : wgAddrs))
 			}
 			else
 			{
@@ -264,7 +269,16 @@ function saveChanges()
 			uci.set("wireguard_gargoyle", "server", "lan_access", getSelectedValue(prefix + "subnet_access"))
 			uci.set("wireguard_gargoyle", "server", "all_client_traffic", getSelectedValue(prefix + "redirect_gateway"))
 
-			configureNetwork(true,privkey,ip + "/" + subcidr,wgPort);
+			// Optional IPv6 (dual-stack). submask6 is a prefix length (e.g. 64).
+			// Empty = IPv4-only, leaving the address list byte-identical to before.
+			var ip6 = document.getElementById(prefix + "ip6").value;
+			var submask6 = document.getElementById(prefix + "mask6").value;
+			uci.set("wireguard_gargoyle", "server", "ip6", ip6)
+			uci.set("wireguard_gargoyle", "server", "submask6", submask6)
+
+			var wgAddrs = [ip + "/" + subcidr];
+			if(ip6 != "" && submask6 != "") { wgAddrs.push(ip6 + "/" + submask6); }
+			configureNetwork(true,privkey,wgAddrs,wgPort);
 
 			uci.removeAllSectionsOfType("network","wireguard_wg0");
 			wgACs = uci.getAllSectionsOfType("wireguard_gargoyle","allowed_client");

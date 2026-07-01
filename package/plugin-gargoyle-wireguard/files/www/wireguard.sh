@@ -81,6 +81,16 @@
 					<span class="col-xs-7"><input type='text' class="form-control" name='wireguard_server_mask' id='wireguard_server_mask' oninput='proofreadMask(this)' size='20' maxlength='15' /></span>
 				</div>
 
+				<div id="wireguard_server_ip6_container" class="row form-group">
+					<label class="col-xs-5" for='wireguard_server_ip6' id='wireguard_server_ip6_label'><%~ wgInIP6 %>:</label>
+					<span class="col-xs-7"><input type='text' class="form-control" name='wireguard_server_ip6' id='wireguard_server_ip6' placeholder='optional' size='30' maxlength='45' /></span>
+				</div>
+
+				<div id="wireguard_server_mask6_container" class="row form-group">
+					<label class="col-xs-5" for='wireguard_server_mask6' id='wireguard_server_mask6_label'><%~ wgIMsk6 %>:</label>
+					<span class="col-xs-7"><input type='text' class="form-control" name='wireguard_server_mask6' id='wireguard_server_mask6' placeholder='64' size='5' maxlength='3' /></span>
+				</div>
+
 				<div id="wireguard_server_port_container" class="row form-group">
 					<label class="col-xs-5" for='wireguard_server_port' id='wireguard_server_port_label'><%~ wgPrt %>:</label>
 					<span class="col-xs-7"><input type='text' class="form-control"  id='wireguard_server_port'  size='20' maxlength='5' oninput='proofreadPort(this)'/><br/></span>
