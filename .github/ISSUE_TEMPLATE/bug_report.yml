@@ -1,0 +1,59 @@
+name: Bug report
+description: Report a problem with Gargoyle firmware or its web interface
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. The more detail you provide, the faster we can reproduce and fix the issue.
+
+        For general help or setup questions, please use [Discussions](https://github.com/ispyisail/gargoyle/discussions) or the [community site](https://www.gargoyle-router.com/) instead of an issue.
+  - type: input
+    id: version
+    attributes:
+      label: Gargoyle version
+      description: Shown on the Status page, or taken from the firmware filename.
+      placeholder: "1.15.x"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Router model
+      description: The exact device you are running on.
+      placeholder: "GL.iNet MT6000 (Flint 2)"
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: Build target / architecture
+      description: e.g. mediatek, ath79, ipq40xx, x86
+      placeholder: "mediatek"
+    validations:
+      required: false
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / output
+      description: "System log (Status → System Log), `logread` output, or the browser console. Automatically formatted as code."
+      render: shell
+    validations:
+      required: false

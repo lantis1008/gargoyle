@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Discussions
+    url: https://github.com/ispyisail/gargoyle/discussions
+    about: Questions, ideas, and general development discussion.
+  - name: Gargoyle Community & Documentation
+    url: https://www.gargoyle-router.com/
+    about: End-user documentation, setup guides, and the community forum.
