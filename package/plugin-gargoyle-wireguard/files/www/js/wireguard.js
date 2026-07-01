@@ -299,6 +299,14 @@ function saveChanges()
 						subnetmask = parseCidr(subnetmask);
 						ipArr.push(subnetip + "/" + subnetmask);
 					}
+					// Optional IPv6 subnet behind this peer (site-to-site v6).
+					// subnet_mask6 is a prefix length (e.g. 64).
+					var subnetip6 = uci.get("wireguard_gargoyle",wgACs[wgACIdx],"subnet_ip6");
+					var subnetmask6 = uci.get("wireguard_gargoyle",wgACs[wgACIdx],"subnet_mask6");
+					if(subnetip6 != "" && subnetmask6 != "")
+					{
+						ipArr.push(subnetip6 + "/" + subnetmask6);
+					}
 					configureAC(clientId,pubkey,ipArr,null,null);
 				}
 			}
