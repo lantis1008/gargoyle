@@ -485,21 +485,55 @@ function toggleAcEnabled()
 	uci.set("wireguard_gargoyle", toggleId, "enabled", (this.checked? "1" : "0"));
 }
 
+// Deterministic IPv6 tunnel address for a downloaded (road-warrior) client, in
+// the absence of an explicit v6 pool: take the server's v6 /prefix and embed the
+// client's v4 host octet in the low 8 bits. Since road-warrior v4 IPs are unique
+// within the server's internal subnet (getUnusedAcIp), the derived v6 host is
+// unique too. Needs at least 8 host bits (prefix <= 120); returns "" otherwise.
+function wgDeriveClientIp6(serverIp6, prefixLen, clientIp4)
+{
+	prefixLen = prefixLen * 1;
+	if(serverIp6 == "" || isNaN(prefixLen) || prefixLen < 1 || prefixLen > 120)
+	{
+		return "";
+	}
+	var lastOctet = parseInt(clientIp4.split(".").pop(), 10);
+	if(isNaN(lastOctet))
+	{
+		return "";
+	}
+	var bin = ip6addr2bin(serverIp6);
+	var octetBin = ("00000000" + lastOctet.toString(2)).substr(-8);
+	var host = "0".repeat(128 - prefixLen - 8) + octetBin;
+	return ip6_canonical(ip6bin2addr(bin.substr(0, prefixLen) + host));
+}
+
 function downloadAc()
 {
 	var downloadRow=this.parentNode.parentNode;
 	var downloadId = downloadRow.childNodes[1].firstChild.id;
 	var wgServerIP = uci.get("wireguard_gargoyle","server","ip");
 	var wgServerLanMask = uci.get("wireguard_gargoyle","server","submask");
+	var wgServerIP6 = uci.get("wireguard_gargoyle","server","ip6");
+	var wgServerLanMask6 = uci.get("wireguard_gargoyle","server","submask6");
+	var haveServerV6 = wgServerIP6 != "" && wgServerLanMask6 != "";
 	var allClientTraffic = uci.get("wireguard_gargoyle","server","all_client_traffic");
 	// Generate config
 	commands = [];
 	commands.push("touch /tmp/wg.ac.tmp.conf");
 	commands.push("rm /tmp/wg.ac.tmp.conf");
 	commands.push("touch /tmp/wg.ac.tmp.conf");
-	
+
 	// Create Interface Section
 	var intaddr = uci.get("wireguard_gargoyle",downloadId,"ip") + "/32";
+	if(haveServerV6)
+	{
+		var clientIp6 = wgDeriveClientIp6(wgServerIP6, wgServerLanMask6, uci.get("wireguard_gargoyle",downloadId,"ip"));
+		if(clientIp6 != "")
+		{
+			intaddr = intaddr + "," + clientIp6 + "/128";
+		}
+	}
 	var intprivkey = uci.get("wireguard_gargoyle",downloadId,"private_key");
 	commands.push("echo '[Interface]' >> /tmp/wg.ac.tmp.conf");
 	commands.push("echo 'Address = " + intaddr + "' >> /tmp/wg.ac.tmp.conf");
@@ -508,15 +542,25 @@ function downloadAc()
 		commands.push("echo 'DNS = " + wgServerIP + "' >> /tmp/wg.ac.tmp.conf");
 	}
 	commands.push("echo 'PrivateKey = " + intprivkey + "' >> /tmp/wg.ac.tmp.conf");
-	
+
 	// Create Peer Section
 	var prroutedips = ["0.0.0.0/0"];
+	if(allClientTraffic == "true" && haveServerV6)
+	{
+		prroutedips.push("::/0");
+	}
 	var prendpoint = uci.get("wireguard_gargoyle",downloadId,"remote") + ":" + uci.get("wireguard_gargoyle","server","port");
 	var prpubkey = uci.get("wireguard_gargoyle","server","public_key");
 	if(allClientTraffic == "false")
 	{
 		prroutedips = [ipToStr(parseIp(wgServerIP) & parseIp(wgServerLanMask)) + "/" + parseCidr(wgServerLanMask)];
 		prroutedips.push(ipToStr(parseIp(currentLanIp) & parseIp(currentLanMask)) + "/" + parseCidr(currentLanMask));
+		if(haveServerV6)
+		{
+			// The WireGuard internal v6 network, so the client can reach the server
+			// and other peers' tunnel addresses.
+			prroutedips.push(ip6_mask(wgServerIP6, wgServerLanMask6) + "/" + wgServerLanMask6);
+		}
 		wgACs = uci.getAllSectionsOfType("wireguard_gargoyle","allowed_client");
 		var wgACIdx = 0;
 		for(wgACIdx = 0; wgACIdx < wgACs.length; wgACIdx ++)
@@ -529,6 +573,12 @@ function downloadAc()
 				{
 					subnetmask = parseCidr(subnetmask);
 					prroutedips.push(subnetip + "/" + subnetmask);
+				}
+				var subnetip6 = uci.get("wireguard_gargoyle",wgACs[wgACIdx],"subnet_ip6");
+				var subnetmask6 = uci.get("wireguard_gargoyle",wgACs[wgACIdx],"subnet_mask6");
+				if(subnetip6 != "" && subnetmask6 != "")
+				{
+					prroutedips.push(subnetip6 + "/" + subnetmask6);
 				}
 			}
 		}
