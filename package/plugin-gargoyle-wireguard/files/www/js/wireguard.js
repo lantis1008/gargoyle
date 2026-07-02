@@ -292,6 +292,20 @@ function saveChanges()
 					var ip = uci.get("wireguard_gargoyle",wgACs[wgACIdx],"ip");
 					var ipArr = [];
 					ipArr.push(ip + "/32");
+					// WireGuard's AllowedIPs also gates which source addresses this
+					// peer is allowed to send from, so the peer's own derived v6
+					// tunnel address (the same one downloadAc() puts in its
+					// Interface Address line) must be allowed here too, or that
+					// peer's IPv6 traffic is silently dropped even though the
+					// downloaded config gives it that address to use.
+					if(ip6 != "" && submask6 != "")
+					{
+						var acIp6 = wgDeriveClientIp6(ip6, submask6, ip);
+						if(acIp6 != "")
+						{
+							ipArr.push(acIp6 + "/128");
+						}
+					}
 					var subnetip = uci.get("wireguard_gargoyle",wgACs[wgACIdx],"subnet_ip");
 					var subnetmask = uci.get("wireguard_gargoyle",wgACs[wgACIdx],"subnet_mask");
 					if(subnetip != "" && subnetmask != "")
