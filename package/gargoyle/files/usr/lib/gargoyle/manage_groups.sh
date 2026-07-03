@@ -35,7 +35,7 @@ for group in $groups; do
 done
 
 # Remove sets whose group no longer exists in UCI
-for existing in $(nft list sets "$NFT_FAMILY" "$NFT_TABLE" 2>/dev/null | awk '/set grp_/{print $2}'); do
+for existing in $(nft list table "$NFT_FAMILY" "$NFT_TABLE" 2>/dev/null | awk '/set grp_/{print $2}'); do
 	found=0
 	for wanted in $desired_sets; do
 		[ "$existing" = "$wanted" ] && found=1 && break
@@ -60,3 +60,9 @@ for group in $groups; do
 		[ -n "$ip" ] && nft add element "$NFT_FAMILY" "$NFT_TABLE" "$setname" \{ "$ip" \} 2>/dev/null
 	done
 done
+
+# Without this, the script's exit code is whatever its last internal [ -n "$ip" ]
+# check happened to evaluate to - a caller checking $? would see a spurious
+# failure whenever the last device processed simply had no active lease yet,
+# even though the script completed all its work correctly.
+exit 0
