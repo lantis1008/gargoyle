@@ -723,8 +723,16 @@ isolate_guest_networks()
 }
 
 
+manage_device_groups()
+{
+	if [ -x /usr/lib/gargoyle/manage_groups.sh ] ; then
+		/usr/lib/gargoyle/manage_groups.sh
+	fi
+}
+
 ifup_firewall()
 {
+	manage_device_groups
 	insert_restriction_rules
 	initialize_quotas
 	insert_pf_loopback_rules

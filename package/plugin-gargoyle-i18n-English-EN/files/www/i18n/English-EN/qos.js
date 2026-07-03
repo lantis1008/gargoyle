@@ -113,3 +113,5 @@ qosStr.DBSect="QoS Download Bandwidth Distribution";
 qosStr.uTFrm="Upload Time Frame";
 qosStr.dTFrm="Download Time Frame";
 
+//known device groups
+qosStr.DevGroup="Device Group";

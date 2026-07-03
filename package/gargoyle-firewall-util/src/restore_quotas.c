@@ -47,6 +47,7 @@ list* filter_group_from_list(list** orig_ip_list, char* ip_group_str);
 int get_ipstr_family(char* ip_str);
 char* invert_bitmask(const char* input, int force_32bit);
 
+char* group_name_to_set_name(char* group_name);
 void delete_chain_from_table(char* family, char* table, char* delete_chain);
 void run_shell_command(char* command, int free_command_str);
 void free_split_pieces(char** split_pieces);
@@ -330,8 +331,9 @@ int main(int argc, char** argv)
 					ip = dynamic_replace(ip, "- ", "-");
 					free(tmp_ip);
 				}
-				
-				
+
+				int is_group_target = (strncmp(ip, "GROUP:", 6) == 0) ? 1 : 0;
+
 				if( (strcmp(ip, "ALL_OTHERS_COMBINED") == 0 || strcmp(ip, "ALL_OTHERS_INDIVIDUAL") == 0) && (!process_other_quota)  )
 				{
 					push_list(other_quota_section_names, strdup(next_quota));
@@ -339,7 +341,7 @@ int main(int argc, char** argv)
 				else
 				{
 					unsigned char is_individual_other =  strcmp(ip, "ALL_OTHERS_INDIVIDUAL") == 0 ? 1 : 0;
-					if( strcmp(ip, "ALL_OTHERS_COMBINED") != 0 && strcmp(ip, "ALL_OTHERS_INDIVIDUAL") != 0 && strcmp(ip, "ALL") != 0 )
+					if( strcmp(ip, "ALL_OTHERS_COMBINED") != 0 && strcmp(ip, "ALL_OTHERS_INDIVIDUAL") != 0 && strcmp(ip, "ALL") != 0 && !is_group_target )
 					{
 						/* this is an explicitly defined ip or ip range, so save it for later, to deal with individual other overlap problem */
 						push_list(defined_ip_groups, strdup(ip));
@@ -497,7 +499,7 @@ int main(int argc, char** argv)
 						int foundip6 = 0;
 						char* ip4_list = NULL;
 						char* ip6_list = NULL;
-						if( strcmp(ip, "ALL_OTHERS_COMBINED") != 0 && strcmp(ip, "ALL_OTHERS_INDIVIDUAL") != 0 && strcmp(ip, "ALL") != 0 )
+						if( strcmp(ip, "ALL_OTHERS_COMBINED") != 0 && strcmp(ip, "ALL_OTHERS_INDIVIDUAL") != 0 && strcmp(ip, "ALL") != 0 && !is_group_target )
 						{
 							char* src_test = dynamic_strcat(3, "saddr ", ip, " ");
 							char* dst_test = dynamic_strcat(3, "daddr ", ip, " ");
@@ -624,6 +626,33 @@ int main(int argc, char** argv)
 								ip_test = dcat_and_free(&ip_test, &rule_end, 1, 1);
 							}
 							
+							run_shell_command(dynamic_strcat(7, "nft add rule ", quota_family_table, " ", quota_chain_prefix, chains[type_index], ip_test, " ct mark set ct mark \\& 0x0FFFFFFF \\| 0xF0000000 2>/dev/null"), 1);
+							free(dst_test);
+							free(src_test);
+						}
+						else if(is_group_target)
+						{
+							char* setname = group_name_to_set_name(ip + 6);
+							char* src_test = dynamic_strcat(3, " ip saddr @", setname, " ");
+							char* dst_test = dynamic_strcat(3, " ip daddr @", setname, " ");
+							free(setname);
+							foundip4 = 1;
+							foundip6 = 0;
+							if(strcmp(types[type_index], "combined_limit") == 0)
+							{
+								run_shell_command(dynamic_strcat(9, "nft add rule ", quota_family_table, " ", quota_chain_prefix, chains[type_index], " iifname ", wan_if, dst_test, " ct mark set ct mark \\& 0xF0FFFFFF \\| 0x0F000000 2>/dev/null"), 1);
+								run_shell_command(dynamic_strcat(9, "nft add rule ", quota_family_table, " ", quota_chain_prefix, chains[type_index], " oifname ", wan_if, src_test, " ct mark set ct mark \\& 0xF0FFFFFF \\| 0x0F000000 2>/dev/null"), 1);
+								char* rule_end = strdup(" ct mark \\& 0x0F000000 == 0x0F000000 ");
+								ip_test = dcat_and_free(&ip_test, &rule_end, 1, 1);
+							}
+							else if(strcmp(types[type_index], "egress_limit") == 0)
+							{
+								ip_test = dcat_and_free(&ip_test, &src_test, 1, 0);
+							}
+							else
+							{
+								ip_test = dcat_and_free(&ip_test, &dst_test, 1, 0);
+							}
 							run_shell_command(dynamic_strcat(7, "nft add rule ", quota_family_table, " ", quota_chain_prefix, chains[type_index], ip_test, " ct mark set ct mark \\& 0x0FFFFFFF \\| 0xF0000000 2>/dev/null"), 1);
 							free(dst_test);
 							free(src_test);
@@ -786,6 +815,15 @@ int main(int argc, char** argv)
 								else if(strcmp(ip, "ALL_OTHERS_COMBINED") == 0)
 								{
 									run_shell_command(dynamic_strcat(7, "nft add rule ", quota_family_table, " nat_quota_redirects tcp dport {80,443} ", time_match_str, " ct mark \\& 0xF0000000 == 0x0 bandwidth bcheck id \\\"", type_id, "\\\" redirect"), 1);
+								}
+								else if(is_group_target)
+								{
+									char* setname = group_name_to_set_name(ip + 6);
+									run_shell_command(dynamic_strcat(5, "nft add rule ", quota_family_table, " nat_quota_redirects ip saddr @", setname, " ct mark set ct mark \\& 0xF0FFFFFF \\| 0x0F000000 2>/dev/null"), 1);
+									run_shell_command(dynamic_strcat(7, "nft add rule ", quota_family_table, " nat_quota_redirects tcp dport {80,443} ", time_match_str, " ct mark \\& 0x0F000000 == 0x0F000000 bandwidth bcheck id \\\"", type_id, "\\\" redirect"), 1);
+									run_shell_command(dynamic_strcat(3, "nft add rule ", quota_family_table, " nat_quota_redirects ct mark \\& 0x0F000000 == 0x0F000000 ct mark set ct mark \\& 0x0FFFFFFF \\| 0xF0000000 2>/dev/null"), 1);
+									run_shell_command(dynamic_strcat(3, "nft add rule ", quota_family_table, " nat_quota_redirects ct mark set ct mark \\& 0xF0FFFFFF \\| 0x0 2>/dev/null"), 1);
+									free(setname);
 								}
 								else
 								{
@@ -1287,6 +1325,35 @@ char* invert_bitmask(const char* input, int force_32bit)
 
     sprintf(result, "0x%0*X", (num_bits + 3) / 4, inverted); // pad to full hex digits
     return result;
+}
+
+char* group_name_to_set_name(char* group_name)
+{
+	int src_len = strlen(group_name);
+	char* sanitized = (char*)malloc(src_len + 1);
+	int i;
+	int out = 0;
+	int last_was_under = 0;
+	for(i = 0; i < src_len; i++)
+	{
+		char c = group_name[i];
+		char out_c;
+		if(c >= 'A' && c <= 'Z') { out_c = c + 32; }
+		else if((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') { out_c = c; }
+		else { out_c = '_'; }
+		/* squeeze consecutive underscores from any source (match shell: tr -cs 'a-z0-9_' '_') */
+		if(out_c == '_' && last_was_under) { continue; }
+		sanitized[out++] = out_c;
+		last_was_under = (out_c == '_');
+	}
+	sanitized[out] = '\0';
+	char* set_name = dynamic_strcat(2, "grp_", sanitized);
+	free(sanitized);
+	if(strlen(set_name) > 31)
+	{
+		set_name[31] = '\0';
+	}
+	return set_name;
 }
 
 void delete_chain_from_table(char* family, char* table, char* delete_chain)

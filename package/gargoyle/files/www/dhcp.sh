@@ -47,6 +47,12 @@
 
 	echo "var ip6neighData = new Array();";
 	ip -6 neigh | grep -v "FAILED" | grep -v "^fe80:" | awk '{print "ip6neighData[\""$1"\"] = \""$5"\";"};'
+
+	echo "var knownDeviceGroups = [];"
+	uci show dhcp 2>/dev/null | grep '^dhcp\.[^.]*\.group=' | sed "s/^[^=]*=//; s/'//g" | sort -u | grep -v '^$' | while read grp ; do
+		escaped=$(printf '%s' "$grp" | sed 's/\\/\\\\/g; s/"/\\"/g')
+		printf 'knownDeviceGroups.push("%s");\n' "$escaped"
+	done
 %>
 
 var ipHostHash = new Array();
@@ -182,7 +188,7 @@ ipHostHash["::1"] = "localhost6";
 	<div class="col-lg-12">
 		<div class="panel panel-default">
 			<div class="panel-heading">
-				<h3 class="panel-title"><%~ SIPs %></h3>
+				<h3 class="panel-title"><%~ dhcp.Devs %></h3>
 			</div>
 			<div class="panel-body">
 				<div id="block_mismatches_container" class="row form-group">
@@ -192,28 +198,28 @@ ipHostHash["::1"] = "localhost6";
 					</span>
 				</div>
 
-				<div id="staticip_add_heading_container" class="row form-group">
-					<label class="col-xs-12" id="staticip_add_heading_label" style="text-decoration:underline"><%~ AdSIP %>:</label>
+				<div id="device_add_heading_container" class="row form-group">
+					<label class="col-xs-12" id="device_add_heading_label" style="text-decoration:underline"><%~ dhcp.AdDev %>:</label>
 				</div>
 
 				<div class="row form-group">
 					<div>
 						<span class="col-xs-12">
-							<select id="static_from_connected" class="form-control">
+							<select id="dev_from_connected" class="form-control">
 								<option value="none"><%~ SelH %></option>
 							</select>
 							<em>(<%~ opt %>)</em>
 						</span>
-						<span class="col-xs-12"><button id="add_button" class="btn btn-default btn-add" onclick="addStaticModal()"><%~ Add %></button></span>
+						<span class="col-xs-12"><button id="add_device_button" class="btn btn-default btn-add" onclick="addDeviceModal()"><%~ Add %></button></span>
 					</div>
 				</div>
 
-				<div id="staticip_table_heading_container" class="row form-group">
-					<span class="col-xs-12" style="text-decoration:underline"><%~ AsSIP %>:</span>
+				<div id="device_table_heading_container" class="row form-group">
+					<span class="col-xs-12" style="text-decoration:underline"><%~ dhcp.AsDevs %>:</span>
 				</div>
 
 				<div class="row form-group">
-					<div id="staticip_table_container" class="table-responsive col-xs-12"></div>
+					<div id="devices_table_container" class="table-responsive col-xs-12"></div>
 				</div>
 			</div>
 		</div>
@@ -229,16 +235,16 @@ ipHostHash["::1"] = "localhost6";
 	<button id="reset_button" class="btn btn-warning btn-lg" onclick="resetData()"><%~ Reset %></button>
 </div>
 
-<div class="modal fade" tabindex="-1" role="dialog" id="static_ip_modal" aria-hidden="true" aria-labelledby="static_ip_modal_title">
+<div class="modal fade" tabindex="-1" role="dialog" id="device_modal" aria-hidden="true" aria-labelledby="device_modal_title">
 	<div class="modal-dialog" role="document">
 		<div class="modal-content">
 			<div class="modal-header">
-				<h3 id="static_ip_modal_title" class="panel-title"><%~ dhcp.AdSIP %></h3>
+				<h3 id="device_modal_title" class="panel-title"><%~ dhcp.AdDev %></h3>
 			</div>
 			<div class="modal-body">
-				<%in templates/static_ip_template %>
+				<%in templates/device_template %>
 			</div>
-			<div class="modal-footer" id="static_ip_modal_button_container">
+			<div class="modal-footer" id="device_modal_button_container">
 			</div>
 		</div>
 	</div>

@@ -31,4 +31,13 @@ dhcpS.AErr="Could not add row.";
 dhcpS.RtrAdv="Router Advertisements";
 dhcpS.RtrAdvMgm="Router Advertisements Management";
 dhcpS.Relayed="Relayed";
+dhcpS.GrpNm="Group";
+dhcpS.Devs="Devices";
+dhcpS.AsDevs="Configured Devices";
+dhcpS.AdDev="Add Device";
+dhcpS.EDev="Edit Device";
+dhcpS.FixIP="Fixed IP";
+dhcpS.ShowAdv="Show advanced (IPv6 reservation)";
+dhcpS.HideAdv="Hide advanced (IPv6 reservation)";
 
+dhcpS.grpErr="Group name may only contain letters, numbers, hyphen and underscore (no spaces).";
