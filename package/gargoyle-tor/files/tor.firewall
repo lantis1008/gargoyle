@@ -4,6 +4,7 @@
 . /usr/lib/bwmon-gargoyle/functions.sh
 
 bwmonscript="/usr/lib/bwmon-gargoyle/bwmon-gargoyle.d/050-tor.bwmon"
+tmp_cron="/tmp/tmp.tor.cron"
 
 if [ -f /tmp/tor.firewall.running ] ; then
 	exit

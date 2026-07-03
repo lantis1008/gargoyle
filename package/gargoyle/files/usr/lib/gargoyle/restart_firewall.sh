@@ -1,4 +1,4 @@
-# This program is copyright © 2008 Eric Bishop and is distributed under the terms of the GNU GPL 
+# This program is copyright ï¿½ 2008 Eric Bishop and is distributed under the terms of the GNU GPL 
 # version 2.0 with a special clarification/exception that permits adapting the program to 
 # configure proprietary "back end" software provided that all modifications to the web interface
 # itself remain covered by the GPL. 
@@ -26,4 +26,10 @@ service_enabled qos_gargoyle	&& /etc/init.d/qos_gargoyle start
 service_enabled miniupnpd	&& /etc/init.d/miniupnpd start
 service_enabled bwmon_gargoyle	&& /etc/init.d/bwmon_gargoyle start
 service_enabled webmon_gargoyle	&& /etc/init.d/webmon_gargoyle start
+
+# Without this, the script's exit code is whatever the last "service_enabled
+# X && /etc/init.d/X start" happened to evaluate to - a caller checking $?
+# sees a spurious failure whenever the last-checked optional service simply
+# isn't enabled, even though the firewall restart itself succeeded.
+exit 0
 
