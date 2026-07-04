@@ -1,0 +1,96 @@
+#!/bin/sh
+# Gargoyle firewall include script for the captive portal plugin. Invoked on
+# every firewall reload via the firewall.captiveportal_include_file config
+# include section (see captive_portal.ucidefaults). Structure mirrors
+# gargoyle-tor's tor.firewall: build our own chains, jump into fw4's real
+# per-zone chains (dstnat_lan/forward_lan), never touch bridge gfw (that
+# table belongs entirely to gargoyle_firewall_util.sh's isolate_guest_networks()
+# and gets rebuilt from scratch on every reload independently of this script).
+
+. /lib/functions.sh
+. /usr/lib/captive_portal/captive_portal_common.sh
+
+if [ -f /tmp/captive_portal.firewall.running ] ; then
+	exit
+fi
+touch /tmp/captive_portal.firewall.running
+
+clear_chains()
+{
+	delete_chain_from_table inet fw4 captive_portal_dstnat
+	delete_chain_from_table inet fw4 captive_portal_forward
+}
+
+remove_cron()
+{
+	touch /etc/crontabs/root
+	grep -v /usr/sbin/update_captive_portal_nftset /etc/crontabs/root > /tmp/tmp.captive_portal.cron
+	tmp_cron=/tmp/tmp.captive_portal.cron
+	. /usr/lib/bwmon-gargoyle/functions.sh
+	update_cron
+}
+
+initialize()
+{
+	local enabled
+	local port
+	local session_minutes
+
+	enabled=$(uci -q get captive_portal.global.enabled)
+	[ "$enabled" != "1" ] && return
+
+	port=$(uci -q get captive_portal.global.port)
+	: "${port:=8082}"
+	session_minutes=$(uci -q get captive_portal.global.session_minutes)
+	: "${session_minutes:=60}"
+
+	nft delete set inet fw4 captive_portal_guest_macs 2>/dev/null
+	nft add set inet fw4 captive_portal_guest_macs \{ type ether_addr\; \}
+	nft delete set inet fw4 captive_portal_auth 2>/dev/null
+	nft add set inet fw4 captive_portal_auth \{ type ipv4_addr . ether_addr\; flags timeout\; \}
+
+	nft add chain inet fw4 captive_portal_dstnat
+	nft add rule inet fw4 captive_portal_dstnat ip saddr . ether saddr @captive_portal_auth return
+	nft add rule inet fw4 captive_portal_dstnat ether saddr @captive_portal_guest_macs tcp dport 80 redirect to :$port
+
+	nft add chain inet fw4 captive_portal_forward
+	nft add rule inet fw4 captive_portal_forward ip saddr . ether saddr @captive_portal_auth accept
+	nft add rule inet fw4 captive_portal_forward ether saddr @captive_portal_guest_macs drop
+
+	nft insert rule inet fw4 dstnat_lan jump captive_portal_dstnat
+	nft insert rule inet fw4 forward_lan jump captive_portal_forward
+
+	# Per-minute guest-MAC set refresh + stale-session prune (update_tor_nftset
+	# style), plus one immediate run so a fresh enable doesn't wait a minute.
+	touch /etc/crontabs/root
+	grep -v /usr/sbin/update_captive_portal_nftset /etc/crontabs/root > /tmp/tmp.captive_portal.cron
+	echo "* * * * * /usr/sbin/update_captive_portal_nftset" >> /tmp/tmp.captive_portal.cron
+	tmp_cron=/tmp/tmp.captive_portal.cron
+	. /usr/lib/bwmon-gargoyle/functions.sh
+	update_cron
+
+	/usr/sbin/update_captive_portal_nftset
+}
+
+shutdown()
+{
+	remove_cron
+	clear_chains
+	nft delete set inet fw4 captive_portal_guest_macs 2>/dev/null
+	nft delete set inet fw4 captive_portal_auth 2>/dev/null
+}
+
+RUN_MODE="$1"
+
+if [ "$RUN_MODE" != "start" ] && [ "$RUN_MODE" != "stop" ] && [ "$RUN_MODE" != "restart" ] ; then
+	RUN_MODE="restart"
+fi
+
+if [ "$RUN_MODE" = "start" ] || [ "$RUN_MODE" = "restart" ] ; then
+	shutdown
+	initialize
+elif [ "$RUN_MODE" = "stop" ] ; then
+	shutdown
+fi
+
+rm /tmp/captive_portal.firewall.running

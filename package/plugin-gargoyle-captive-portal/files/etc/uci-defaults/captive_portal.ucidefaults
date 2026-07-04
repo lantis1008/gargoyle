@@ -1,0 +1,38 @@
+#!/bin/sh
+
+# Firewall include registration - tor.ucidefaults pattern. captive_portal.firewall
+# runs on every reload and (re)builds the portal's own nftables sets/chains.
+uci set firewall.captiveportal_include_file=include
+uci set firewall.captiveportal_include_file.path='/etc/captive_portal.firewall'
+[ -z "$(command -v fw4)" ] && uci set firewall.captiveportal_include_file.reload='1'
+
+# Second uhttpd instance for the guest-facing splash/auth pages - deliberately
+# separate from the admin instance (which serves /login.sh as its error_page;
+# reusing it would land unauthenticated guests one click from admin login).
+port="$(uci -q get captive_portal.global.port)"
+[ -z "$port" ] && port='8082'
+uci set uhttpd.captive_portal=uhttpd
+uci -q delete uhttpd.captive_portal.listen_http
+uci add_list uhttpd.captive_portal.listen_http="0.0.0.0:${port}"
+uci set uhttpd.captive_portal.home='/www-captive-portal'
+uci set uhttpd.captive_portal.index_page='index.sh'
+uci set uhttpd.captive_portal.error_page='/index.sh'
+uci set uhttpd.captive_portal.no_dirlists='1'
+uci -q delete uhttpd.captive_portal.interpreter
+uci add_list uhttpd.captive_portal.interpreter='.sh=/usr/bin/run_haserl'
+
+# Admin menu entry (Firewall submenu), adblock-style i18n-menu naming.
+menu_name="Captive Portal"
+if [ -n "$(command -v i18n-menu)" ]; then
+	mn="$(i18n-menu gargoyle.display.firewall_captive_portal)"
+	[ -n "$mn" ] && menu_name="$mn"
+fi
+uci set gargoyle.display.firewall_captive_portal="$menu_name"
+uci set gargoyle.scripts.firewall_captive_portal='captive_portal.sh'
+uci set gargoyle.firewall.captive_portal='130'
+
+uci commit uhttpd
+uci commit firewall
+uci commit gargoyle
+
+/etc/init.d/uhttpd restart 2>/dev/null

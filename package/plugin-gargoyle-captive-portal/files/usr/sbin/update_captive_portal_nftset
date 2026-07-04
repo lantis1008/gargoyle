@@ -1,0 +1,59 @@
+#!/bin/sh
+# Refreshes the captive-portal guest-client MAC set and prunes stale
+# authenticated sessions for devices that have disassociated from the guest
+# AP. Runs every minute via cron (registered by captive_portal.firewall) plus
+# once immediately whenever the portal is (re)enabled.
+#
+# All nft mutations are batched into a single `nft -f -` call rather than one
+# `nft add/delete element` invocation per device - looping individual nft
+# calls forks a new process per item, a real CPU-spike anti-pattern already
+# found and fixed once this project in gargoyle-tor's own update_tor_nftset.
+
+if [ -e /tmp/captive_portal.nftset.running ] ; then
+	exit
+fi
+touch /tmp/captive_portal.nftset.running
+
+enabled=$(uci -q get captive_portal.global.enabled)
+if [ "$enabled" != "1" ] ; then
+	rm -f /tmp/captive_portal.nftset.running
+	exit
+fi
+
+. /lib/functions.sh
+. /usr/lib/captive_portal/captive_portal_common.sh
+
+guest_macs="$(cp_get_guest_client_macs)"
+
+{
+	printf "flush set inet fw4 captive_portal_guest_macs\n"
+	for gmac in $guest_macs ; do
+		printf "add element inet fw4 captive_portal_guest_macs { %s }\n" "$gmac"
+	done
+} | nft -f - 2>/dev/null
+
+# Prune auth entries for MACs no longer associated to any guest AP - don't
+# make a device that's already left wait out the rest of its session timeout.
+stale_elements="$(nft list set inet fw4 captive_portal_auth 2>/dev/null \
+	| grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+ *\. *[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]')"
+
+if [ -n "$stale_elements" ] ; then
+	{
+		echo "$stale_elements" | while IFS= read -r entry ; do
+			eip="$(echo "$entry" | awk '{print $1}')"
+			emac="$(echo "$entry" | awk '{print $3}')"
+			still_here="no"
+			for gmac in $guest_macs ; do
+				if [ "$gmac" = "$emac" ] ; then
+					still_here="yes"
+					break
+				fi
+			done
+			if [ "$still_here" = "no" ] ; then
+				printf "delete element inet fw4 captive_portal_auth { %s . %s }\n" "$eip" "$emac"
+			fi
+		done
+	} | nft -f - 2>/dev/null
+fi
+
+rm -f /tmp/captive_portal.nftset.running

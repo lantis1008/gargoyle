@@ -1,0 +1,10 @@
+config global 'global'
+	option enabled '0'
+	option port '8082'
+	option auth_mode 'clickthrough'
+	option session_minutes '60'
+	option gateway_name 'Guest WiFi'
+	option redirect_url ''
+
+config auth 'auth'
+	option password_hash ''
