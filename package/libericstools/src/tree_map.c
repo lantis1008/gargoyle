@@ -908,6 +908,11 @@ static unsigned long sdbm_string_hash(const char *key)
 {
 	unsigned long hashed_key = 0;
 
+	if(key == NULL)
+	{
+		return hashed_key;
+	}
+
 	int index = 0;
 	unsigned int nextch;
 	while(key[index] != '\0')
