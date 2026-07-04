@@ -11,8 +11,6 @@ var voipStr = new Object(); // part of i18n
 function resetData()
 {
 	document.getElementById("sip_alg_enabled").checked = sipAlgEnabled;
-	document.getElementById("reboot_warning").style.display = "none";
-	document.getElementById("reboot_button").style.display = "none";
 	setControlsEnabled(true);
 }
 
@@ -23,17 +21,34 @@ function saveChanges()
 	var enabled = document.getElementById("sip_alg_enabled").checked;
 	var commands = [];
 
-	// Manage only our own /etc/modules.d/sip-alg file -- never edit other
-	// packages' module lists. Enabling overwrites it; disabling removes it.
 	if(enabled)
 	{
-		commands.push("printf 'nf_conntrack_sip\\nnf_nat_sip\\n' > /etc/modules.d/sip-alg");
-		commands.push("modprobe nf_conntrack_sip nf_nat_sip 2>/dev/null; true");
+		// Undo a prior disable and let the firewall re-adopt the modules
+		// on its next reload (fw4 only wires up a ct helper for a module
+		// it finds present in /sys/module).
+		commands.push("sed -i '/^blacklist nf_conntrack_sip$/d;/^blacklist nf_nat_sip$/d' /etc/modules.conf");
+		commands.push("modprobe nf_conntrack_sip 2>/dev/null; true");
+		commands.push("modprobe nf_nat_sip 2>/dev/null; true");
+		commands.push("/etc/init.d/firewall reload >/dev/null 2>&1; true");
 	}
 	else
 	{
-		commands.push("rm -f /etc/modules.d/sip-alg");
-		commands.push("modprobe -r nf_nat_sip nf_conntrack_sip 2>/dev/null; true");
+		// Blacklist in /etc/modules.conf so the modules never load again -
+		// nf_nat_sip/nf_conntrack_sip are also listed in the unrelated,
+		// package-managed /etc/modules.d/nf-nathelper-extra, so merely
+		// removing our own modules.d entry (the old approach) has no
+		// effect on boot. Then strip every zone's "ct helper set sip" rule
+		// and the ct helper object itself before unloading, live, without
+		// a reboot: a plain firewall reload can't do this on its own,
+		// since fw4 only omits the sip helper once the module is already
+		// gone from /sys/module - the rule referencing it has to come
+		// down first, or the module can't be removed at all.
+		commands.push("grep -qs '^blacklist nf_conntrack_sip$' /etc/modules.conf || echo 'blacklist nf_conntrack_sip' >> /etc/modules.conf");
+		commands.push("grep -qs '^blacklist nf_nat_sip$' /etc/modules.conf || echo 'blacklist nf_nat_sip' >> /etc/modules.conf");
+		commands.push("nft -a list table inet fw4 2>/dev/null | awk '/^\\tchain /{c=$2} /ct helper set \"sip\"/{print c, $NF}' | while read chain handle; do nft delete rule inet fw4 \"$chain\" handle \"$handle\" 2>/dev/null; done");
+		commands.push("nft delete ct helper inet fw4 sip 2>/dev/null; true");
+		commands.push("rmmod nf_nat_sip 2>/dev/null; true");
+		commands.push("rmmod nf_conntrack_sip 2>/dev/null; true");
 	}
 
 	var param = getParameterDefinition("commands", commands.join("\n")) + "&" + getParameterDefinition("hash", document.cookie.replace(/^.*hash=/, "").replace(/[\t ;]+.*$/, ""));
@@ -43,25 +58,6 @@ function saveChanges()
 		{
 			sipAlgEnabled = enabled;
 			setControlsEnabled(true);
-			document.getElementById("reboot_warning").style.display = "";
-			document.getElementById("reboot_button").style.display = "";
-		}
-	};
-	runAjax("POST", "utility/run_commands.sh", param, stateChangeFunction);
-}
-
-function rebootNow()
-{
-	document.getElementById("reboot_button").disabled = true;
-	document.getElementById("save_button").disabled = true;
-	document.getElementById("reset_button").disabled = true;
-
-	var param = getParameterDefinition("commands", "(sleep 3 && reboot) &") + "&" + getParameterDefinition("hash", document.cookie.replace(/^.*hash=/, "").replace(/[\t ;]+.*$/, ""));
-	var stateChangeFunction = function(req)
-	{
-		if(req.readyState == 4)
-		{
-			document.getElementById("reboot_warning").innerHTML = "<div class=\"alert alert-info\">" + rebootingMsg + "</div>";
 		}
 	};
 	runAjax("POST", "utility/run_commands.sh", param, stateChangeFunction);
