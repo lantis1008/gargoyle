@@ -113,9 +113,20 @@ reload_wifi()
 check_sta()
 {
 	sta_radio="$(uci_get "wireless" "$stacfgsec" "device")"
-	phywl="$(iwinfo nl80211 phyname $sta_radio 2>&1 | sed 's/[0-9]//g')"
-	[ "$phywl" == "Phy not found" ] && phywl="phy"
-	sta_wlan="$(echo "$sta_radio-sta0" | sed "s/radio/$phywl/g" )"
+	# Use the resolved phy name directly rather than stripping its digits and
+	# re-substituting into "$sta_radio-sta0" - that only produced the right
+	# interface name when the kernel's phy number happened to match the
+	# radio's own UCI suffix (e.g. radio0 -> phy0), which isn't guaranteed
+	# (driver/hotplug reordering, or repeated module reload as with
+	# mac80211_hwsim in test environments). A mismatch here queries a
+	# nonexistent interface, so check_sta always reports disconnected even
+	# when the station has genuinely associated.
+	phyname="$(iwinfo nl80211 phyname $sta_radio 2>&1)"
+	if [ "$phyname" = "Phy not found" ] ; then
+		sta_wlan="$(echo "$sta_radio-sta0" | sed 's/radio/phy/g' )"
+	else
+		sta_wlan="${phyname}-sta0"
+	fi
 	wireless_info="$(iwinfo $sta_wlan i 2>/dev/null)"
 	
 	
