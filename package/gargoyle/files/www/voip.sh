@@ -12,13 +12,11 @@
 <script>
 <!--
 <%
-	if grep -qsE '^(nf_nat_sip|nf_conntrack_sip)$' /etc/modules.d/sip-alg 2>/dev/null ; then
+	if lsmod | grep -q '^nf_conntrack_sip ' ; then
 		echo "var sipAlgEnabled = true;"
 	else
 		echo "var sipAlgEnabled = false;"
 	fi
-
-	echo "var rebootingMsg = \"<%~ voip.Rbtng %>\";"
 %>
 //-->
 </script>
@@ -42,11 +40,6 @@
 						<%~ voip.SIPInfo %>
 					</span>
 				</div>
-				<div id="reboot_warning" class="row form-group" style="display:none">
-					<span class="col-xs-12">
-						<div class="alert alert-warning"><%~ voip.RbtWarn %></div>
-					</span>
-				</div>
 			</div>
 		</div>
 	</div>
@@ -55,7 +48,6 @@
 <div id="bottom_button_container" class="panel panel-default">
 	<button id="save_button" class="btn btn-primary btn-lg" onclick="saveChanges()"><%~ SaveChanges %></button>
 	<button id="reset_button" class="btn btn-warning btn-lg" onclick="resetData()"><%~ Reset %></button>
-	<button id="reboot_button" class="btn btn-danger btn-lg" onclick="rebootNow()" style="display:none"><%~ voip.RbtNow %></button>
 </div>
 
 <script>
