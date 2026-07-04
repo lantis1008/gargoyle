@@ -2384,21 +2384,25 @@ char** ParseGHF_TranslationStrings(char* web_root, char* active_lang, char* fall
 			for (ghf_line=0; ghf_line < num_lines; ghf_line++)
 			{
 				char* this_line = ghf_js_lines[ghf_line];
-				unsigned short idx, start_str, end_str = 0;
+				size_t this_len = strlen(this_line);
+				unsigned short idx = 0, start_str = 0, end_str = 0;
 
-				for (idx=0; idx < strlen(this_line); idx++)
+				for (idx=0; idx < (unsigned short)this_len; idx++)
 				{
 					//UTF8-BOM+ start of comment (/*) or just start of comment (/*)? skip the line
-					if (memcmp(this_line+idx, "\xEF\xBB\xBF/*", 5) == 0 || memcmp(this_line+idx, "/*", 2) == 0)
+					//Guard the length before memcmp to avoid reading past the end of the line.
+					if (    (this_len - idx >= 5 && memcmp(this_line+idx, "\xEF\xBB\xBF/*", 5) == 0)
+					     || (this_len - idx >= 2 && memcmp(this_line+idx, "/*", 2) == 0) )
 					{
 						continue;
 					}
 					//skip lines shorter than 4 bytes (ghf. is 4 bytes, which is malformed) + skip empty lines
-					if (strlen(this_line) < 5 || this_line[idx] == '\n')
+					if (this_len < 5 || this_line[idx] == '\n')
 					{
 						continue;
 					}
-					if (this_line[idx] == '"' && this_line[idx-1] == '=')
+					//Guard idx > 0 before reading this_line[idx-1] to avoid underflow.
+					if (this_line[idx] == '"' && idx > 0 && this_line[idx-1] == '=')
 					{
 						start_str=idx+1;
 					}
@@ -2407,12 +2411,17 @@ char** ParseGHF_TranslationStrings(char* web_root, char* active_lang, char* fall
 						end_str=idx;
 					}
 				}
-				if (start_str > 0 && end_str > 0)
+				//Guard end_str > start_str to prevent unsigned wrap on the subtraction.
+				if (start_str > 0 && end_str > start_str)
 				{
-					char* val=(char*)calloc(end_str-start_str<8 ? 8 : (end_str-start_str)+1, sizeof(char));
-					memcpy(val, this_line+start_str, end_str-start_str);
-					GHFstrings[ghf_idx]=val;
-					ghf_idx++;
+					size_t vlen = (size_t)(end_str - start_str);
+					char* val=(char*)calloc(vlen < 8 ? 8 : vlen+1, sizeof(char));
+					if (val != NULL)
+					{
+						memcpy(val, this_line+start_str, vlen);
+						GHFstrings[ghf_idx]=val;
+						ghf_idx++;
+					}
 				}
 			}
 		}
