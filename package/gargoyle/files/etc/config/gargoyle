@@ -28,6 +28,7 @@ config display display
 	option connection_dhcp		'DHCP'
 	option connection_basic		'Basic'
 	option connection_advanced	'Advanced'
+	option connection_vlan		'VLAN'
 	option connection_routing	'Routing'
 	option system			'System'
 	option system_access		'Router Access'
@@ -55,6 +56,7 @@ config scripts scripts
 	option connection_basic		'basic.sh'
 	option connection_advanced	'advanced.sh'
 	option connection_dhcp		'dhcp.sh'
+	option connection_vlan		'vlan.sh'
 	option connection_routing	'routing.sh'
 	option system_access		'access.sh'
 	option system_ident		'identification.sh'
@@ -83,6 +85,7 @@ config 100 status
 config 200 connection
 	option basic	'100'
 	option advanced '110'
+	option vlan	'160'
 	option dhcp	'200'
 	option routing	'400'
 
