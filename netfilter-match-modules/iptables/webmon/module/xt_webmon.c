@@ -103,6 +103,12 @@ static int max_search_queue_length   = 5;
 
 static spinlock_t webmon_lock = __SPIN_LOCK_UNLOCKED(webmon_lock);;
 
+void add_queue_node(int family, ipany src_ip, char* value, queue* full_queue, string_map* queue_index, char* queue_index_key, uint32_t max_queue_length);
+void destroy_queue(queue* q);
+int strnicmp(const char * cs,const char * ct,size_t count);
+char *strnistr(const char *s, const char *find, size_t slen);
+int within_edit_distance(char *s1, char *s2, int max_edit);
+char** split_on_separators(char* line, char* separators, int num_separators, int max_pieces, int include_remainder_at_max, unsigned long *num_pieces);
 
 static void update_queue_node_time(queue_node* update_node, queue* full_queue)
 {
@@ -131,7 +137,7 @@ static void update_queue_node_time(queue_node* update_node, queue* full_queue)
 	}
 }
 
-void add_queue_node(int family, ipany src_ip, char* value, queue* full_queue, string_map* queue_index, char* queue_index_key, uint32_t max_queue_length )
+void add_queue_node(int family, ipany src_ip, char* value, queue* full_queue, string_map* queue_index, char* queue_index_key, uint32_t max_queue_length)
 {
 
 	queue_node *new_node = (queue_node*)kmalloc(sizeof(queue_node), GFP_ATOMIC);

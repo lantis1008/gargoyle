@@ -52,6 +52,12 @@ MODULE_ALIAS("ip6t_weburl");
 
 string_map* compiled_map = NULL;
 
+int strnicmp(const char * cs,const char * ct,size_t count);
+char *strnistr(const char *s, const char *find, size_t slen);
+int do_match_test(unsigned char match_type,  const char* reference, char* query);
+int http_match(const struct xt_weburl_info* info, const unsigned char* packet_data, int packet_length);
+int https_match(const struct xt_weburl_info* info, const unsigned char* packet_data, int packet_length);
+
 int strnicmp(const char * cs,const char * ct,size_t count)
 {
 	register signed char __res = 0;

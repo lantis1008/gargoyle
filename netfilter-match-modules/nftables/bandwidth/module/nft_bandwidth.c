@@ -35,7 +35,7 @@
 
 #include <linux/semaphore.h> 
 
-#include "bandwidth_deps/tree_map.h"
+#include "nft_bandwidth_deps/tree_map.h"
 #include <linux/netfilter/nft_bandwidth.h>
 
 #include <linux/ip.h>
@@ -132,6 +132,10 @@ static ktime_t get_next_reset_time(struct nft_bandwidth_info *info, ktime_t now,
 static ktime_t get_nominal_previous_reset_time(struct nft_bandwidth_info *info, ktime_t current_next_reset);
 
 static uint64_t* initialize_map_entries_for_ip(info_and_maps* iam, char* ip, uint64_t initial_bandwidth, uint32_t family);
+
+char** split_on_separators(char* line, char* separators, int num_separators, int max_pieces, int include_remainder_at_max, unsigned long *num_pieces);
+char* trim_flanking_whitespace(char* str);
+void parse_ips_and_ranges(char* addr_str, struct nft_bandwidth_info *priv);
 
 int free_null_terminated_string_array(char** strs);
 
@@ -3414,8 +3418,9 @@ static void nft_bandwidth_destroy(const struct nft_ctx *ctx, const struct nft_ex
 	#endif
 }
 
-static struct nf_sockopt_ops nft_bandwidth_sockopts = 
+static struct nf_sockopt_ops nft_bandwidth_sockopts =
 {
+	.owner = THIS_MODULE,
 	.pf = PF_INET,
 	.set_optmin = BANDWIDTH_SET,
 	.set_optmax = BANDWIDTH_SET+1,
@@ -3444,11 +3449,20 @@ static struct nft_expr_type nft_bandwidth_type __read_mostly =  {
 
 static int __init init(void)
 {
+	int ret;
+	int sockopt_registered = 0;
+
 	/* Register setsockopt */
-	if (nf_register_sockopt(&nft_bandwidth_sockopts) < 0)
+	ret = nf_register_sockopt(&nft_bandwidth_sockopts);
+	if (ret < 0)
 	{
 		printk("nft_bandwidth: Can't register sockopts. Aborting\n");
 	}
+	else
+	{
+		sockopt_registered = 1;
+	}
+
 	bandwidth_record_max = get_bw_record_max();
 	local_minutes_west = old_minutes_west = sys_tz.tz_minuteswest;
 	local_seconds_west = local_minutes_west*60;
@@ -3464,10 +3478,25 @@ static int __init init(void)
 	if(id_map == NULL) /* deal with kmalloc failure */
 	{
 		printk("id map is null, returning -1\n");
+		/*
+		 * On nonzero init() return the kernel frees this module's image without ever
+		 * calling fini() -- if we leave the sockopt registered, nf_sockopt's global list
+		 * keeps a live entry pointing into memory that no longer exists, and the next
+		 * setsockopt/getsockopt on BANDWIDTH_SET/BANDWIDTH_GET jumps into freed memory.
+		 */
+		if(sockopt_registered)
+		{
+			nf_unregister_sockopt(&nft_bandwidth_sockopts);
+		}
 		return -1;
 	}
 
-	return nft_register_expr(&nft_bandwidth_type);
+	ret = nft_register_expr(&nft_bandwidth_type);
+	if(ret < 0 && sockopt_registered)
+	{
+		nf_unregister_sockopt(&nft_bandwidth_sockopts);
+	}
+	return ret;
 }
 
 static void __exit fini(void)

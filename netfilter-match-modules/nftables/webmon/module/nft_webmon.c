@@ -42,7 +42,7 @@
 
 #include <linux/netfilter/nft_webmon.h>
 
-#include "webmon_deps/tree_map.h"
+#include "nft_webmon_deps/tree_map.h"
 
 #include <linux/ktime.h>
 
@@ -103,6 +103,15 @@ static const struct nla_policy nft_webmon_policy[NFTA_WEBMON_MAX + 1] = {
 	[NFTA_WEBMON_SEARCHLOADDATALEN]	= { .type = NLA_U32 },
 };
 
+void add_queue_node(int family, ipany src_ip, char* value, queue* full_queue, string_map* queue_index, char* queue_index_key, uint32_t max_queue_length);
+void destroy_queue(queue* q);
+int strnicmp(const char * cs,const char * ct,size_t count);
+char *strnistr(const char *s, const char *find, size_t slen);
+int within_edit_distance(char *s1, char *s2, int max_edit);
+char** split_on_separators(char* line, char* separators, int num_separators, int max_pieces, int include_remainder_at_max, unsigned long *num_pieces);
+char* trim_flanking_whitespace(char* str);
+void parse_ips_and_ranges(char* addr_str, struct nft_webmon_info *priv);
+
 static void update_queue_node_time(queue_node* update_node, queue* full_queue)
 {
 	struct timespec64 t;
@@ -130,7 +139,7 @@ static void update_queue_node_time(queue_node* update_node, queue* full_queue)
 	}
 }
 
-void add_queue_node(int family, ipany src_ip, char* value, queue* full_queue, string_map* queue_index, char* queue_index_key, uint32_t max_queue_length )
+void add_queue_node(int family, ipany src_ip, char* value, queue* full_queue, string_map* queue_index, char* queue_index_key, uint32_t max_queue_length)
 {
 
 	queue_node *new_node = (queue_node*)kmalloc(sizeof(queue_node), GFP_ATOMIC);
@@ -2164,6 +2173,8 @@ static struct nft_expr_type nft_webmon_type __read_mostly =  {
 
 static int __init init(void)
 {
+	int ret;
+
 	#ifdef CONFIG_PROC_FS
 	//struct proc_dir_entry *proc_webmon_recent_domains;
 	//struct proc_dir_entry *proc_webmon_recent_searches;
@@ -2189,7 +2200,22 @@ static int __init init(void)
 	#endif
 
 	spin_unlock_bh(&webmon_lock);
-	return nft_register_expr(&nft_webmon_type);
+
+	ret = nft_register_expr(&nft_webmon_type);
+	if(ret < 0)
+	{
+		/*
+		 * On nonzero init() return the kernel frees this module's image without ever
+		 * calling fini() -- if we leave these /proc entries registered, their file ops
+		 * keep pointing into memory that no longer exists, and the next read/write of
+		 * webmon_recent_domains or webmon_recent_searches jumps into freed memory.
+		 */
+		#ifdef CONFIG_PROC_FS
+		remove_proc_entry("webmon_recent_domains", NULL);
+		remove_proc_entry("webmon_recent_searches", NULL);
+		#endif
+	}
+	return ret;
 }
 
 static void __exit fini(void)

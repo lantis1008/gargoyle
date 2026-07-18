@@ -41,15 +41,9 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter/xt_bandwidth.h>
 
-typedef union
-{
-	struct in_addr ip4;
-	struct in6_addr ip6;
-} ipany;
-
 int get_minutes_west(void);
 void set_kernel_timezone(void);
-int parse_sub(char* subnet_string, ipany* subnet, ipany* subnet_mask, int family);
+int parse_sub(char* subnet_string, union xt_bandwidth_ipany* subnet, union xt_bandwidth_ipany* subnet_mask, int family);
 static void param_problem_exit_error(char* msg);
 char** split_on_separators(char* line, char* separators, int num_separators, int max_pieces, int include_remainder_at_max);
 char* trim_flanking_whitespace(char* str);
@@ -105,8 +99,8 @@ static int parse(	int c,
 	struct xt_bandwidth_info *info = (struct xt_bandwidth_info *)(*match)->data;
 	int valid_arg = 0;
 	long int num_read;
-	uint64_t read_64;
-	time_t read_time;
+	long long int read_64;
+	long long int read_time;
 
 	/* set defaults first time we get here */
 	if(*flags == 0)
@@ -424,11 +418,11 @@ static void print_bandwidth_args(struct xt_bandwidth_info* info, int family)
 		
 		if(info->cmp == BANDWIDTH_GT)
 		{
-			printf("--greater_than %lld ", info->bandwidth_cutoff);
+			printf("--greater_than %lld ", (long long)info->bandwidth_cutoff);
 		}
 		if(info->cmp == BANDWIDTH_LT)
 		{
-			printf("--less_than %lld ", info->bandwidth_cutoff);
+			printf("--less_than %lld ", (long long)info->bandwidth_cutoff);
 		}
 		if (info->type == BANDWIDTH_COMBINED) /* too much data to print for multi types, have to use socket to get/set data */
 		{
@@ -442,12 +436,12 @@ static void print_bandwidth_args(struct xt_bandwidth_info* info, int family)
 			}
 			else 
 			{
-				printf("--current_bandwidth %lld ", info->current_bandwidth);
+				printf("--current_bandwidth %lld ", (long long)info->current_bandwidth);
 			}
 		}
 		if(info->reset_is_constant_interval)
 		{
-			printf("--reset_interval %lld ", info->reset_interval);
+			printf("--reset_interval %lld ", (long long)info->reset_interval);
 		}
 		else
 		{
@@ -474,7 +468,7 @@ static void print_bandwidth_args(struct xt_bandwidth_info* info, int family)
 		}
 		if(info->reset_time > 0)
 		{
-			printf("--reset_time %lld ", info->reset_time);
+			printf("--reset_time %lld ", (long long)info->reset_time);
 		}
 		if(info->num_intervals_to_save > 0)
 		{
@@ -531,7 +525,7 @@ static void save_mt4(const void *ip, const struct xt_entry_match *match)
 	print_bandwidth_args(info, NFPROTO_IPV4);
 	
 	time(&now);
-	printf("--last_backup-time %lld ", now);
+	printf("--last_backup-time %lld ", (long long)now);
 }
 
 static void save_mt6(const void *ip, const struct xt_entry_match *match)
@@ -542,7 +536,7 @@ static void save_mt6(const void *ip, const struct xt_entry_match *match)
 	print_bandwidth_args(info, NFPROTO_IPV6);
 	
 	time(&now);
-	printf("--last_backup-time %lld ", now);
+	printf("--last_backup-time %lld ", (long long)now);
 }
 
 static struct xtables_match bandwidth_mt_reg[] = 
@@ -587,7 +581,7 @@ static void param_problem_exit_error(char* msg)
 	xtables_error(PARAMETER_PROBLEM, "%s", msg);
 }
 
-int parse_sub(char* subnet_string, ipany* subnet, ipany* subnet_mask, int family)
+int parse_sub(char* subnet_string, union xt_bandwidth_ipany* subnet, union xt_bandwidth_ipany* subnet_mask, int family)
 {
 	char** sub_parts = split_on_separators(subnet_string,"/",1,2,1);
 	char* substr = trim_flanking_whitespace(sub_parts[0]);

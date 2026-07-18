@@ -21,3 +21,4 @@ src_statement.c.1||insert||after||0||include <rule.h>||src/statement.c
 src_statement.c.2||insert||before||2||static void reject_stmt_print||src/statement.c
 include_linux_netfilter_nftables.h.1||insert||after||0||#define NFTA_REJECT_MAX||include/linux/netfilter/nf_tables.h
 include_parser.h.1||insert||after||0||PARSER_SC_STMT_REJECT||include/parser.h
+src_statement.c.3||insert||after||0||case STMT_REJECT: return &reject_stmt_ops;||src/statement.c

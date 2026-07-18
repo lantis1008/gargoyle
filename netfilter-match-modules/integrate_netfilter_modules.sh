@@ -143,12 +143,12 @@ EOF
 	printf "$defines\n" >> nf-patch-build/linux-download-make
 
 	cat << 'EOF' >>nf-patch-build/linux-download-make
+GENERIC_PLATFORM_DIR := $(TOPDIR)/target/linux/generic
+PLATFORM_DIR:=$(TOPDIR)/target/linux/$(BOARD)
+
 include $(INCLUDE_DIR)/kernel-version.mk
 KERNEL_NAME:=$(shell echo "$(KERNEL)" | sed 's/ /\./g' |  sed 's/\.$$//g' )
 KERNEL_PATCHVER_NAME:=$(shell echo "$(KERNEL_PATCHVER)" | sed 's/ /\./g' |  sed 's/\.$$//g' )
-
-GENERIC_PLATFORM_DIR := $(TOPDIR)/target/linux/generic
-PLATFORM_DIR:=$(TOPDIR)/target/linux/$(BOARD)
 
 GENERIC_BACKPORT_PATCH_DIR := $(GENERIC_PLATFORM_DIR)/backport-$(KERNEL_NAME)
 GENERIC_PENDING_PATCH_DIR := $(GENERIC_PLATFORM_DIR)/pending-$(KERNEL_NAME)
@@ -473,6 +473,30 @@ for new_d in $new_nftables_module_dirs ; do
 			insert_lines_at "$insert_line_num" "$config_lines" "linux.new/net/netfilter/Kconfig" "1"
 		fi
 
+		#some custom nft_* expressions (e.g. bandwidth) declare more netlink attributes than
+		#upstream's NFT_EXPR_MAXATTR allows. Kernel 6.12 added nft_register_expr() ->
+		#WARN_ON_ONCE(type->maxattr > NFT_EXPR_MAXATTR), which fails registration (-ENOMEM)
+		#for any expr type declaring more attributes than the constant permits -- this check
+		#didn't exist before 6.12. A module signals it needs a higher ceiling by shipping an
+		#optional "maxattr" file (just the required integer) alongside its module/header/
+		#nftables dirs; if present, bump NFT_EXPR_MAXATTR here to at least that value.
+		#NFT_EXPR_MAXATTR is a kernel-internal sizing constant (bounds a fixed-size on-stack
+		#netlink attribute array in nf_tables_api.c/nft_inner.c), not part of the uAPI, so
+		#raising it carries no wire-format/ABI risk. This bump deliberately lives here rather
+		#than as a standalone generic kernel patch, so it stays next to the module that
+		#actually requires it -- a bare "16 -> 17" edit elsewhere would be meaningless
+		#without knowing which expression type forced it.
+		if [ -e "$new_d/maxattr" ] ; then
+			required_maxattr=$(cat "$new_d/maxattr")
+			nf_tables_h="linux.new/include/net/netfilter/nf_tables.h"
+			current_maxattr=$(cat "$nf_tables_h" | egrep "#define NFT_EXPR_MAXATTR" | egrep -o "[0-9]+")
+			if [ -n "$current_maxattr" ] && [ "$required_maxattr" -gt "$current_maxattr" ] ; then
+				echo "nftables $upper_name module declares $required_maxattr attributes, exceeding kernel's NFT_EXPR_MAXATTR=$current_maxattr -- raising it to $required_maxattr"
+				cat "$nf_tables_h" | sed "s/#define NFT_EXPR_MAXATTR.*/#define NFT_EXPR_MAXATTR $required_maxattr/" >.tmp.tmp
+				mv .tmp.tmp "$nf_tables_h"
+			fi
+		fi
+
 		#update files for nftables extension
 		if [ -e $new_d/nftables/meta ] ; then
 			while IFS=$'\n' read -r line;
@@ -606,7 +630,10 @@ if [ "$patch_kernel" = 1 ] ; then
 	cd linux.new
 	module_files=$(find net/netfilter)
 	include_files=$(find include/linux/netfilter)
-	test_files="$module_files $include_files"
+	#outside both dirs walked above -- included so an NFT_EXPR_MAXATTR bump (see the
+	#nftables module loop above) actually lands in the generated patch
+	nf_tables_h_file="include/net/netfilter/nf_tables.h"
+	test_files="$module_files $include_files $nf_tables_h_file"
 	cd ..
 	for t in $test_files ; do
 		if [ ! -d "linux.new/$t" ] ; then

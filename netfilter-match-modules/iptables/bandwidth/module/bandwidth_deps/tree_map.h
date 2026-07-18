@@ -1108,5 +1108,3 @@ static unsigned long sdbm_string_hash(const char *key)
 	}
 	return hashed_key;
 }
-
-
