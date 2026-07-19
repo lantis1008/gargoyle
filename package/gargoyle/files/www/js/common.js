@@ -233,6 +233,12 @@ function runAjax(method, url, params, stateChangeFunction)
 	{
 		req.onreadystatechange = function()
 		{
+			if(req.readyState == 4 && req.responseURL && req.responseURL.indexOf("login.sh") !== -1)
+			{
+				setControlsEnabled(true);
+				window.location.href = req.responseURL;
+				return;
+			}
 			stateChangeFunction(req);
 		}
 
