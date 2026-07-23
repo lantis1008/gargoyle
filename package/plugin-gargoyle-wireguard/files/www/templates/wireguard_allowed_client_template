@@ -60,15 +60,18 @@
 				</div>
 				<div id="wireguard_allowed_client_subnet_ip_container" class="row form-group" >
 					<span class="col-xs-7 col-xs-offset-5">
-						<input type='text' class="form-control" id='wireguard_allowed_client_subnet_ip' size='20' maxlength='15' />&nbsp;<em><%~ SubIP %></em>
+						<input type='text' class="form-control" id='wireguard_allowed_client_subnet_ip' size='20' maxlength='15' oninput='checkWgClientSubnetOverlap()' />&nbsp;<em><%~ SubIP %></em>
 					</span>
 					<span style="clear:both"></span>
 				</div>
 				<div id="wireguard_allowed_client_subnet_mask_container" class="row form-group" >
 					<span class="col-xs-7 col-xs-offset-5">
-						<input type='text' class="form-control"  id='wireguard_allowed_client_subnet_mask' size='20' maxlength='15' />&nbsp;<em><%~ SubM %></em>
+						<input type='text' class="form-control"  id='wireguard_allowed_client_subnet_mask' size='20' maxlength='15' oninput='checkWgClientSubnetOverlap()' />&nbsp;<em><%~ SubM %></em>
 					</span>
 					<span style="clear:both"></span>
+				</div>
+				<div class="row form-group" >
+					<span id='wireguard_allowed_client_subnet_warn' class="col-xs-12 alert alert-warning" style="display:none"><%~ OvlpWarn %></span>
 				</div>
 
 				<input class="form-control" style="display:none" id="wireguard_allowed_client_initial_id" />
