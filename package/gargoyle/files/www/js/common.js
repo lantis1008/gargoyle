@@ -233,6 +233,31 @@ function runAjax(method, url, params, stateChangeFunction)
 	{
 		req.onreadystatechange = function()
 		{
+			// If the session expired, the server 302-redirects to login.sh and
+			// runs no commands. XHR follows the redirect transparently, so the
+			// caller would otherwise see login-page HTML with status 200 and
+			// silently lose the user's unsaved input -- and a polling page can
+			// be left with its wait overlay stuck. Detect the redirect
+			// centrally, clear the overlay, and go to login (which shows the
+			// expired-session message).
+			//
+			// responseURL is only used as the signal, never as the destination:
+			// the session validator emits a path-relative "Location: login.sh",
+			// so for an XHR to utility/*.sh the browser resolves it against
+			// /utility/ and responseURL is /utility/login.sh. That path has no
+			// file behind it -- uhttpd's error_page still renders the login
+			// page, but the header's relative i18n src then resolves to
+			// /utility/i18n/<lang>/strings.js and 404s, leaving the page
+			// untranslated. Always send the browser to the web root's login.sh,
+			// carrying over the validator's ?expired=1 so the expiry message
+			// is still shown.
+			if(req.readyState == 4 && req.responseURL && req.responseURL.indexOf("login.sh") != -1)
+			{
+				var queryIndex = req.responseURL.indexOf("?");
+				setControlsEnabled(true);
+				window.location.href = "/login.sh" + (queryIndex != -1 ? req.responseURL.substring(queryIndex) : "");
+				return;
+			}
 			stateChangeFunction(req);
 		}
 

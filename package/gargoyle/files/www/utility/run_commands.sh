@@ -12,12 +12,21 @@
 
 	if [ -n "$FORM_commands" ] ; then
 
-		tmp_file="/tmp/tmp.sh"
-		printf "%s" "$FORM_commands" | tr -d "\r" > $tmp_file
-		sh $tmp_file
-
-		if [ -e $tmp_file ] ; then
-			rm $tmp_file
+		# Unique temp file per request (mktemp) so a concurrent save from
+		# another tab can't overwrite this request's command file before it
+		# runs, and an exclusive lock around execution so two requests'
+		# `uci commit`s can't interleave and corrupt a shared config file.
+		# Both symptoms surface on the forum as a service (dnsmasq/firewall/
+		# qos) crashing after a multi-tab save. The mktemp template keeps the
+		# X's at the very end -- busybox mktemp rejects a suffix after them.
+		tmp_file=$(mktemp /tmp/gargoyle_cmd.XXXXXX)
+		if [ -n "$tmp_file" ] ; then
+			printf "%s" "$FORM_commands" | tr -d "\r" > "$tmp_file"
+			(
+				flock -x 200
+				sh "$tmp_file"
+			) 200>/var/lock/gargoyle_uci.lock
+			rm -f "$tmp_file"
 		fi
 	fi
 	echo "Success"
