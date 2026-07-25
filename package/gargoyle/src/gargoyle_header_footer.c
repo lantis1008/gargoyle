@@ -377,7 +377,7 @@ int main(int argc, char **argv)
 			{
 					printf("\t<script src=\"/i18n/%s/strings.js?%s\"></script>\n", fallback_lang, gargoyle_version);
 			}
-			printf("\t<script src=\"i18n/%s/strings.js?%s\"></script>\n", active_lang, gargoyle_version);
+			printf("\t<script src=\"/i18n/%s/strings.js?%s\"></script>\n", active_lang, gargoyle_version);
 			for(lstr_js_index=0; all_lstr_js[lstr_js_index] != NULL; lstr_js_index++)
 			{
 				if (memcmp(fallback_lang, active_lang, strlen(active_lang)) != 0)
