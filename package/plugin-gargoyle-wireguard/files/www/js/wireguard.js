@@ -877,9 +877,74 @@ function validateAc(internalServerIp, internalServerMask)
 		var subnetIpEl   = document.getElementById(prefix + "subnet_ip")
 		var subnetMaskEl = document.getElementById(prefix + "subnet_mask")
 		subnetIpEl.value = applyMask(subnetIpEl.value, subnetMaskEl.value)
+
+		// Reject a routed "subnet behind the client" that overlaps a subnet
+		// Gargoyle already controls (its own LAN, or the WireGuard server
+		// subnet). route_allowed_ips=1 installs a route sending that subnet
+		// into the tunnel; if it overlaps the LAN, the router black-holes its
+		// own LAN traffic and the admin is locked out (discussion #128).
+		// WireGuard saves have no auto-revert, so this proofread is the guard.
+		var controlled = wgControlledSubnets(internalServerIp, internalServerMask)
+		for(var ci = 0; ci < controlled.length; ci++)
+		{
+			if(wgSubnetsOverlap(subnetIpEl.value, subnetMaskEl.value, controlled[ci][0], controlled[ci][1]))
+			{
+				errors.push(controlled[ci][2])
+			}
+		}
 	}
 
 	return errors;
+}
+
+// Two IPv4 subnets overlap iff their network addresses are equal under the
+// shorter (coarser) of the two masks -- i.e. one contains the other.
+function wgSubnetsOverlap(ipA, maskA, ipB, maskB)
+{
+	var m = parseMask(maskA) & parseMask(maskB)
+	return (parseIp(ipA) & m) == (parseIp(ipB) & m)
+}
+
+// The subnets Gargoyle already controls, that a client's routed subnet must
+// not overlap: the router's own LAN and (when configured) the WireGuard
+// server subnet. Each entry is [ip, mask, errorString].
+function wgControlledSubnets(serverIp, serverMask)
+{
+	var subs = []
+	var lanIp   = uciOriginal.get("network", "lan", "ipaddr")
+	var lanMask = uciOriginal.get("network", "lan", "netmask")
+	// OpenWrt 24.10+ may store ipaddr as a CIDR list ("192.168.1.1/24"); split it.
+	if(lanIp instanceof Array) { lanIp = lanIp.length > 0 ? lanIp[0] : "" }
+	if(typeof lanIp == "string" && lanIp.indexOf("/") != -1)
+	{
+		var parts = lanIp.split("/"); lanIp = parts[0]
+		if(lanMask == null || lanMask == "") { lanMask = parts[1] }
+	}
+	if(lanIp && lanMask) { subs.push([lanIp, lanMask, wgStr.OvlpLan]) }
+	if(serverIp && serverMask) { subs.push([serverIp, serverMask, wgStr.OvlpWg]) }
+	return subs
+}
+
+// Live warning shown as the routed-subnet fields are edited (the earlier nudge
+// before the proofread's hard stop on save). Reuses the same overlap check.
+function checkWgClientSubnetOverlap()
+{
+	var warn = document.getElementById("wireguard_allowed_client_subnet_warn")
+	if(warn == null) { return }
+	var ip   = document.getElementById("wireguard_allowed_client_subnet_ip").value
+	var mask = document.getElementById("wireguard_allowed_client_subnet_mask").value
+	var hit = false
+	if(ip.match(/^\d+\.\d+\.\d+\.\d+$/) && mask != "")
+	{
+		var srvIp   = document.getElementById("wireguard_server_ip").value
+		var srvMask = document.getElementById("wireguard_server_mask").value
+		var controlled = wgControlledSubnets(srvIp, srvMask)
+		for(var ci = 0; ci < controlled.length; ci++)
+		{
+			if(wgSubnetsOverlap(ip, mask, controlled[ci][0], controlled[ci][1])) { hit = true }
+		}
+	}
+	warn.style.display = hit ? "" : "none"
 }
 
 function parseMask(mask)
