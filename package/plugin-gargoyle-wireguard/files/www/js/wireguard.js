@@ -839,6 +839,8 @@ function setAllowedClientVisibility()
 	{
 		document.getElementById("wireguard_allowed_client_pubkey").removeAttribute("readonly");
 	}
+
+	checkWgClientSubnetOverlap();
 }
 
 function validateAc(internalServerIp, internalServerMask)
