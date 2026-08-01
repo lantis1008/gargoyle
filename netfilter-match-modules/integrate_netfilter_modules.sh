@@ -16,7 +16,7 @@ insert_lines_at()
 	remainder=$(($file_length - $insert_after))
 		
 	head -n $insert_after $file >.tmp.tmp
-	printf "$lines\n" >>.tmp.tmp
+	printf '%s\n' "$lines" >>.tmp.tmp
 	if [ $remainder -gt 0 ] ; then
 		tail -n $remainder $file >>.tmp.tmp
 	fi
@@ -123,7 +123,7 @@ if [ "$patch_kernel" = 1 ] ; then
 	board_var=$(cat target/linux/$target_name/Makefile | grep "BOARD.*:=")
 	kernel_var=$(cat target/linux/$target_name/Makefile | grep "KERNEL.*:=")
 	linux_ver_var=$(cat target/linux/$target_name/Makefile | grep "LINUX_VERSION.*:=") 
-	defines=$(printf "$board_var\n$kernel_var\n$linux_ver_var\n")
+	defines=$(printf '%s\n%s\n%s\n' "$board_var" "$kernel_var" "$linux_ver_var")
 
 	cat << 'EOF' >nf-patch-build/linux-download-make
 CP:=cp -fpR
@@ -140,7 +140,7 @@ DOWNLOAD_CHECK_CERTIFICATE:=$(CONFIG_DOWNLOAD_CHECK_CERTIFICATE)
 export DOWNLOAD_CHECK_CERTIFICATE
 EOF
 
-	printf "$defines\n" >> nf-patch-build/linux-download-make
+	printf '%s\n' "$defines" >> nf-patch-build/linux-download-make
 
 	cat << 'EOF' >>nf-patch-build/linux-download-make
 include $(INCLUDE_DIR)/kernel-version.mk
