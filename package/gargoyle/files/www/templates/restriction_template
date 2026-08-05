@@ -7,7 +7,7 @@
 	<label class="col-xs-5" id="rule_ip_family_label" for="rule_ip_family" ><%~ IPFam %>:</label>
 	<span class="col-xs-7">
 		<select id="rule_ip_family" class="form-control" aria-labelledby="rule_ip_family_label" onchange="setVisibility('rule_')">
-			<option value="any"><%~ both %></option>
+			<option value="any"><%~ restrictions.IPFamBoth %></option>
 			<option value="ipv4">IPv4</option>
 			<option value="ipv6">IPv6</option>
 		</select>
@@ -33,7 +33,7 @@
 			<button type="button" class="btn btn-default btn-add" id="rule_add_applies_to_addr" onclick='restriction_addAddressesToTable("rule_",document, "rule_applies_to_addr","rule_applies_to_table_container","rule_applies_to_table",true,3,true)'><%~ Add %></button>
 		</div>
 		<div class="col-xs-offset-5 col-xs-7">
-			<em><%~ HstAddr %></em>
+			<em id="rule_applies_to_hint"><%~ HstAddr %></em>
 		</div>
 	</div>
 	<div id="rule_applies_to_6_container">
