@@ -8,15 +8,14 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=gargoyle-tor
-PKG_VERSION:=0.4.8.12
+PKG_VERSION:=0.4.9.13
 PKG_RELEASE:=1
 
 PKG_SOURCE:=tor-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://dist.torproject.org/ \
 	https://archive.torproject.org/tor-package-archive
-PKG_HASH:=ca7cc735d98e3747b58f2f3cc14f804dd789fa0fb333a84dcb6bd70adbb8c874
-PKG_MAINTAINER:=Hauke Mehrtens <hauke@hauke-m.de> \
-		Peter Wagner <tripolar@gmx.at> \
+PKG_HASH:=5e748d3272cdf44a7d7741173f371c8def3d96eecb77e93c89c50663ce9cc792
+PKG_MAINTAINER:=Rui Salvaterra <rsalvaterra@gmail.com> \
 		Michael Gray (gargoyle-tor) <support@lantisproject.com>
 PKG_LICENSE:=BSD-3-Clause
 PKG_LICENSE_FILES:=LICENSE
@@ -124,6 +123,7 @@ endef
 
 define Package/gargoyle-tor/conffiles
 /etc/tor/torrc
+/etc/tor/torrc.d/*
 /var/lib/tor/fingerprint
 /var/lib/tor/keys/*
 /etc/config/tor

@@ -1,7 +1,7 @@
 --- a/src/lib/fs/dir.c
 +++ b/src/lib/fs/dir.c
 @@ -49,6 +49,8 @@
- #include <errono.h>
+ #include <errno.h>
  #include <string.h>
  
 +#define O_NOFOLLOW 0
@@ -11,7 +11,7 @@
   *  - if <b>check</b>&CPD_CREATE, try to create it and return 0 on success.
 --- a/src/lib/fs/files.h
 +++ b/src/lib/fs/files.h
-@@ -35,9 +35,7 @@
+@@ -39,9 +39,7 @@
  #ifndef O_TEXT
  #define O_TEXT 0
  #endif
@@ -23,7 +23,7 @@
  
 --- a/src/lib/sandbox/sandbox.c
 +++ b/src/lib/sandbox/sandbox.c
-@@ -90,6 +90,8 @@
+@@ -94,6 +94,8 @@
  #include <execinfo.h>
  #endif
  

@@ -84,15 +84,6 @@ config LIBCURL_SSH2
 	bool "SCP / SFTP protocol"
 	default n
 
-config LIBCURL_SMB
-	bool "SMB protocol (CIFS)"
-	depends on LIBCURL_CRYPTO_AUTH && (LIBCURL_GNUTLS || LIBCURL_OPENSSL)
-	default n
-config LIBCURL_NO_SMB
-	string "SMB require 'cryptographic authentication' and either 'GnuTLS' or 'OpenSSL'"
-	depends on !LIBCURL_CRYPTO_AUTH || (!LIBCURL_GNUTLS && !LIBCURL_OPENSSL)
-	default "!"
-
 config LIBCURL_SMTP
 	bool "SMTP / SMTPS protocol"
 	default n
@@ -105,17 +96,12 @@ config LIBCURL_TFTP
 	bool "TFTP protocol"
 	default n
 
-config LIBCURL_NGHTTP2
-	bool "HTTP2 protocol"
+config LIBCURL_HTTP2
+	bool "HTTP/2 protocol"
 	default y
 
-config LIBCURL_NGHTTP3
+config LIBCURL_HTTP3
 	bool "HTTP/3 protocol"
-	depends on LIBCURL_OPENSSL
-	default n
-
-config LIBCURL_NGTCP2
-	bool "QUIC protocol"
 	depends on LIBCURL_OPENSSL
 	default n
 
@@ -129,8 +115,8 @@ config LIBCURL_CRYPTO_AUTH
 	bool "Enable cryptographic authentication"
 	default n
 
-config LIBCURL_TLS_SRP
-	bool "Enable TLS-SRP authentication"
+config LIBCURL_KERBEROS_AUTH
+	bool "Enable Kerberos authentication"
 	default n
 
 config LIBCURL_LIBIDN2
@@ -145,7 +131,7 @@ config LIBCURL_THREADED_RESOLVER
 
 config LIBCURL_ZLIB
 	bool "Enable zlib support"
-	default n
+	default y
 
 config LIBCURL_ZSTD
 	bool "Enable zstd support"
@@ -157,9 +143,9 @@ config LIBCURL_UNIX_SOCKETS
 	help
 		Enable HTTP over unix domain sockets.
 		To use this with the curl command line, you specify the socket path to the new --unix-domain option.
-		This feature is actually not limited to HTTP, you can do all the TCP-based protocols 
-		except FTP over the unix domain socket, but it is only HTTP that is regularly used this way. 
-		The reason FTP isn't supported is of course its use of two connections 
+		This feature is actually not limited to HTTP, you can do all the TCP-based protocols
+		except FTP over the unix domain socket, but it is only HTTP that is regularly used this way.
+		The reason FTP isn't supported is of course its use of two connections
 		which would be even weirder to do like this.
 
 config LIBCURL_LIBCURL_OPTION
@@ -175,4 +161,7 @@ config LIBCURL_NTLM
 	depends on LIBCURL_CRYPTO_AUTH && !LIBCURL_NOSSL
 	default n
 
+config LIBCURL_HTTP_AUTH
+	bool "Enable HTTP authentication support"
+	default y
 endif

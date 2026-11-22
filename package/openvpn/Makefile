@@ -9,14 +9,14 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=openvpn
 
-PKG_VERSION:=2.6.14
+PKG_VERSION:=2.6.23
 PKG_RELEASE:=1
 
 PKG_SOURCE_URL:=\
 	https://build.openvpn.net/downloads/releases/ \
 	https://swupdate.openvpn.net/community/releases/
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
-PKG_HASH:=9eb6a6618352f9e7b771a9d38ae1631b5edfeed6d40233e243e602ddf2195e7a
+PKG_HASH:=4041c709162bec1325abf5aa8cf27a255cc477c634b15ee310411c701fc40a96
 
 PKG_MAINTAINER:=
 
@@ -37,7 +37,7 @@ define Package/openvpn/Default
   SUBMENU:=VPN
   MENU:=1
   DEPENDS:=+kmod-tun +libcap-ng +OPENVPN_gargoyle_$(1)_ENABLE_LZO:liblzo +OPENVPN_gargoyle_$(1)_ENABLE_LZ4:liblz4 +OPENVPN_gargoyle_$(1)_ENABLE_IPROUTE2:ip \
-	+OPENVPN_gargoyle_$(1)_ENABLE_DCO:libnl-genl +OPENVPN_gargoyle_$(1)_ENABLE_DCO:kmod-ovpn-dco-v2 $(3)
+	+OPENVPN_gargoyle_$(1)_ENABLE_DCO:libnl-genl $(3)
   VARIANT:=$(1)
   PROVIDES:=openvpn openvpn-gargoyle openvpn-crypto
 endef

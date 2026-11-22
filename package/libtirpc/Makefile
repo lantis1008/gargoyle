@@ -36,6 +36,9 @@ endif
 
 TARGET_CFLAGS += -DGQ
 HOST_CFLAGS += -DGQ
+# Host GCC 15+ defaults to C23, which breaks libtirpc 1.3.4's K&R-style
+# declarations (e.g. "extern bool_t xdr_opaque_auth();" in auth_none.c)
+HOST_CFLAGS += -std=gnu17
 
 define Package/libtirpc/install
 	$(INSTALL_DIR) $(1)/usr/lib
