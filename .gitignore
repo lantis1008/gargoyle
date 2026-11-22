@@ -1,0 +1,23 @@
+# Build outputs generated in-tree by build.sh / rebuild.sh (removed by
+# `make clean` / `make distclean`).
+/*-src/
+/built/
+/images/
+/Distribution/
+/package-prepare/
+/compressed_javascript/
+/compressed_css/
+
+# Download / tool caches kept across builds (removed by `make distclean`)
+/downloaded/
+/minifiers/
+# node/npm are only cloned here when they aren't installed on the build host
+/node/
+/npm/
+
+# Editor backup/swap files (also deleted by `make clean`)
+*~
+.*.sw?
+
+# Per-user Claude Code settings
+/.claude/settings.local.json
