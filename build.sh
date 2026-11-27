@@ -199,41 +199,35 @@ distrib_copy_arch_ind_ipk()
 {
 	local tgt="$1"
 	local ltype="$2"
-	local di=1
-	
+	local apkg
+	local pf
+
 	local dpkgs=$(find "$top_dir/package" -path '*plugin-gargoyle-*' -and -name 'Makefile' -and -not -path '*-i18n-*' | xargs grep -s -l "DEPENDS:=+gargoyle$" | xargs grep -s -l "PKGARCH:=all$" | awk -F'/' '{print $(NF-1)}')
-	
-	# printf -- '%s\n' "${dpkgs[@]}"
-	
-	if [ ! -d "$top_dir/Distribution/architecture-independent packages ]" ] ; then
-		mkdir -p "$top_dir/Distribution/architecture-independent packages"
+
+	# Since OpenWrt 19.07 packages are in bin/packages/<pkg_arch>/base, not bin/<target>/packages.
+	# A target can have several pkg_arch dirs (one per profile CPU type); architecture-independent
+	# (_all) packages are identical in each, so copying from all of them is harmless.
+	local pkg_dirs=$(find "$top_dir/$tgt-src/bin/packages" -mindepth 2 -maxdepth 2 -type d -name base 2>/dev/null)
+	if [ -z "$pkg_dirs" ] ; then
+		echo "WARNING: no package directories found in $top_dir/$tgt-src/bin/packages"
+		return 0
 	fi
-	#if [ ! -d "$top_dir/Distribution/theme packages ]" ] ; then
-	#	mkdir -p "$top_dir/Distribution/theme packages"
-	#fi
-	
-	if [ ! -d "$top_dir/Distribution/theme packages ]" ] && [ "$ltype" = 'internationalize' ] ; then
+
+	mkdir -p "$top_dir/Distribution/architecture-independent packages"
+	if [ "$ltype" = 'internationalize' ] ; then
 		mkdir -p "$top_dir/Distribution/language packages"
 	fi
-	
-	while true; do
-		local apkg=$(echo "$dpkgs" | awk -v rec=$di 'NR==rec {print $0}')
-		[[ -z "$apkg" ]] && 
-		{
-			break
-		} || {
-			ipkg=("$top_dir/$tgt-src/bin/$tgt/packages/${apkg}"*"ipk")
-			[[ -f "${ipkg[0]}" ]] &&
-			{
-				cp -f "$top_dir/$tgt-src/bin/$tgt/packages/$apkg"*".ipk" "$top_dir/Distribution/architecture-independent packages/"
-			}
-		}
-		let di++
+
+	for apkg in $dpkgs ; do
+		for pf in $(find $pkg_dirs -maxdepth 1 -name "${apkg}_*_all.ipk") ; do
+			cp -f "$pf" "$top_dir/Distribution/architecture-independent packages/"
+		done
 	done
-	#cp -f "$top_dir/$tgt-src/bin/$tgt/packages/plugin-gargoyle-theme-"*".ipk" "$top_dir/Distribution/theme packages/"
-	
+
 	if [ "$ltype" = 'internationalize' ] ; then
-		cp -f "$top_dir/$tgt-src/bin/$tgt/packages/plugin-gargoyle-i18n-"*".ipk" "$top_dir/Distribution/language packages/"
+		for pf in $(find $pkg_dirs -maxdepth 1 -name 'plugin-gargoyle-i18n-*_all.ipk') ; do
+			cp -f "$pf" "$top_dir/Distribution/language packages/"
+		done
 	fi
 }
 
@@ -242,8 +236,9 @@ distrib_init ()
 	if [ ! -d "$top_dir/Distribution" ] ; then
 		mkdir "$top_dir/Distribution"
 	fi
-	#git log --since=5/16/2013 $(git log -1 --pretty=format:%h) --pretty=format:"%h%x09%ad%x09%s" --date=short > "$top_dir/Distribution/changelog.txt"
-	git log $(git describe --abbrev=0 --tags)..$(git log -1 --pretty=format:%h) --no-merges --pretty=format:"%h%x09%ad%x09%s" --date=short > "$top_dir/Distribution/Gargoyle changelog.txt"
+	# Run git against the Gargoyle repo explicitly: this is called from inside <target>-src,
+	# which is OpenWrt's own git checkout.
+	git -C "$top_dir" log $(git -C "$top_dir" describe --abbrev=0 --tags)..HEAD --no-merges --pretty=format:"%h%x09%ad%x09%s" --date=short > "$top_dir/Distribution/Gargoyle changelog.txt"
 	cp -fR "$top_dir/LICENSES" "$top_dir/Distribution/"
 }
 
@@ -947,7 +942,7 @@ for target in $targets ; do
 					newname=$(echo "$c" | sed 's/^.*\///g' | sed "s/openwrt/gargoyle_$lower_short_gargoyle_version/g")
 					cp "$c" "$top_dir/images/$target/$newname"
 					if [ "$distribution" = "true" ] ; then
-						cp "$c" "$top_dir/Distribution/Images/$target-$default_profile/$newname"
+						cp "$c" "$top_dir/Distribution/Images/$target-$profile_name/$newname"
 					fi
 				fi
 			done
